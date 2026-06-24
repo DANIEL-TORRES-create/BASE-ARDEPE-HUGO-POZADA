@@ -416,26 +416,69 @@ function consultar() {
       var pendientes = ingresos.length;
       var ingresosData = [];
 
+      /* Construir ingresosData y armar un ExecuteMultiCall para LogRecord en lote */
       ingresos.forEach(function(ev, idx) {
         var row = {
-          idx:       idx,
-          deviceId:  ev.device ? ev.device.id : null,
+          idx:        idx,
+          deviceId:   ev.device ? ev.device.id : null,
           activeFrom: ev.activeFrom,
           zonaNombre: null,
           salida:     null
         };
         ingresosData.push(row);
-
-        /* Resolver zona directamente desde ev.zone — sin llamada extra a LogRecord */
-        if (ev.zone && ev.zone.id) {
-          var zMatch = _zonas.find(function(z) { return z.id === ev.zone.id; });
-          row.zonaNombre = zMatch ? zMatch.name : "Sin zona";
-        } else {
-          row.zonaNombre = "Sin zona";
-        }
-        pendientes--;
-        if (pendientes === 0) buscarSalidas(ingresosData, hoyISO, hasta, CFG());
       });
+
+      /* Una sola llamada en lote para obtener GPS de todos los eventos */
+      var gpsCallsFull = ingresosData.map(function(row) {
+        var tFin = new Date(new Date(row.activeFrom).getTime() + 60000).toISOString();
+        return {
+          method: "Get",
+          params: {
+            typeName: "LogRecord",
+            search: {
+              deviceSearch: { id: row.deviceId || "b1" },
+              fromDate: row.activeFrom,
+              toDate:   tFin
+            }
+          }
+        };
+      });
+
+      /* Geotab limita ExecuteMultiCall a 100 calls por lote — dividir en chunks */
+      var CHUNK = 100;
+      var chunks = [];
+      for (var ci = 0; ci < gpsCallsFull.length; ci += CHUNK) {
+        chunks.push(gpsCallsFull.slice(ci, ci + CHUNK));
+      }
+
+      var gpsResults = new Array(ingresosData.length);
+      var chunksRestantes = chunks.length;
+
+      chunks.forEach(function(chunk, chunkIdx) {
+        var offsetBase = chunkIdx * CHUNK;
+        _api.call("ExecuteMultiCall", { calls: chunk }, function(results) {
+          (results || []).forEach(function(r, ri) {
+            gpsResults[offsetBase + ri] = (r && r.length > 0) ? r[0] : null;
+          });
+          chunksRestantes--;
+          if (chunksRestantes === 0) resolverZonasYSeguir();
+        }, function() {
+          chunksRestantes--;
+          if (chunksRestantes === 0) resolverZonasYSeguir();
+        });
+      });
+
+      function resolverZonasYSeguir() {
+        ingresosData.forEach(function(row, i) {
+          var gps = gpsResults[i];
+          if (gps) {
+            row.zonaNombre = resolverZonaPorCoord(gps.latitude, gps.longitude) || "Sin zona";
+          } else {
+            row.zonaNombre = "Sin zona";
+          }
+        });
+        buscarSalidas(ingresosData, hoyISO, hasta, CFG());
+      }
     }, function(err) {
       setLoading(false);
       alert("Error consultando ingresos: " + (err.message || err));
@@ -446,7 +489,26 @@ function consultar() {
   });
 }
 
-/* resolverZonaPorCoord eliminada — se usa ev.zone directamente */
+/* ═══════════════════════════════════════════════════════════
+   RESOLVER ZONA POR COORDENADAS (bounding-box sobre points)
+   p.y = latitud, p.x = longitud — igual que api_geotab.gs
+═══════════════════════════════════════════════════════════ */
+function resolverZonaPorCoord(lat, lon) {
+  for (var i = 0; i < _zonas.length; i++) {
+    var zona = _zonas[i];
+    if (!zona.points || zona.points.length === 0) continue;
+    var lats = zona.points.map(function(p) { return p.y; });
+    var lons = zona.points.map(function(p) { return p.x; });
+    var minLat = Math.min.apply(null, lats);
+    var maxLat = Math.max.apply(null, lats);
+    var minLon = Math.min.apply(null, lons);
+    var maxLon = Math.max.apply(null, lons);
+    if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
+      return zona.name;
+    }
+  }
+  return null;
+}
 
 /* ═══════════════════════════════════════════════════════════
    BUSCAR SALIDAS para cada device
