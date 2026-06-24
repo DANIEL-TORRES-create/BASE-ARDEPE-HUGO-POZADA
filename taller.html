@@ -378,15 +378,18 @@ function consultar() {
   var hastaISO = hasta + "T23:59:59.000Z";
   var cfg = CFG();
 
-  /* 1) Traer TODAS las zonas y filtrar en cliente las que tengan zoneType b554 */
+  /* 1) Traer TODAS las zonas y filtrar por el tipo del módulo activo.
+        Se guarda en variable local (zonaSnapshot) para aislar de cambios
+        de módulo que ocurran mientras la consulta está en curso. */
   _api.call("Get", {
     typeName: "Zone",
     search: {}
   }, function(todasZonas) {
-    _zonas = (todasZonas || []).filter(function(z) {
+    var zonaSnapshot = (todasZonas || []).filter(function(z) {
       if (!z.zoneTypes || z.zoneTypes.length === 0) return false;
       return z.zoneTypes.some(function(zt) { return zt.id === cfg.zonaTypeId; });
     });
+    _zonas = zonaSnapshot; /* también actualizar global para compatibilidad */
 
     /* 2) Traer ExceptionEvents de ingreso */
     var searchIngreso = {
@@ -472,12 +475,12 @@ function consultar() {
         ingresosData.forEach(function(row, i) {
           var gps = gpsResults[i];
           if (gps) {
-            row.zonaNombre = resolverZonaPorCoord(gps.latitude, gps.longitude) || "Sin zona";
+            row.zonaNombre = resolverZonaPorCoord(gps.latitude, gps.longitude, zonaSnapshot) || "Sin zona";
           } else {
             row.zonaNombre = "Sin zona";
           }
         });
-        buscarSalidas(ingresosData, hoyISO, hasta, CFG());
+        buscarSalidas(ingresosData, hoyISO, hasta, cfg, zonaSnapshot);
       }
     }, function(err) {
       setLoading(false);
@@ -493,10 +496,11 @@ function consultar() {
    RESOLVER ZONA POR COORDENADAS (bounding-box sobre points)
    p.y = latitud, p.x = longitud — igual que api_geotab.gs
 ═══════════════════════════════════════════════════════════ */
-function resolverZonaPorCoord(lat, lon) {
+function resolverZonaPorCoord(lat, lon, zonas) {
   var DELTA = 0.005; /* ~500m tolerancia para GPS en borde de zona */
-  for (var i = 0; i < _zonas.length; i++) {
-    var zona = _zonas[i];
+  var listaZonas = zonas || _zonas;
+  for (var i = 0; i < listaZonas.length; i++) {
+    var zona = listaZonas[i];
     if (!zona.points || zona.points.length === 0) continue;
     var lats = zona.points.map(function(p) { return p.y; });
     var lons = zona.points.map(function(p) { return p.x; });
@@ -515,7 +519,7 @@ function resolverZonaPorCoord(lat, lon) {
 /* ═══════════════════════════════════════════════════════════
    BUSCAR SALIDAS para cada device
 ═══════════════════════════════════════════════════════════ */
-function buscarSalidas(ingresosData, hoyISO, fechaHasta, cfg) {
+function buscarSalidas(ingresosData, hoyISO, fechaHasta, cfg, zonaSnapshot) {
   var deviceIds = [];
   ingresosData.forEach(function(r) {
     if (r.deviceId && deviceIds.indexOf(r.deviceId) === -1) deviceIds.push(r.deviceId);
@@ -544,11 +548,11 @@ function buscarSalidas(ingresosData, hoyISO, fechaHasta, cfg) {
         return new Date(a.activeFrom) - new Date(b.activeFrom);
       });
       count--;
-      if (count === 0) emparejarYRender(ingresosData, salidosPorDevice, fechaHasta, cfg);
+      if (count === 0) emparejarYRender(ingresosData, salidosPorDevice, fechaHasta, cfg, zonaSnapshot);
     }, function() {
       salidosPorDevice[deviceId] = [];
       count--;
-      if (count === 0) emparejarYRender(ingresosData, salidosPorDevice, fechaHasta, cfg);
+      if (count === 0) emparejarYRender(ingresosData, salidosPorDevice, fechaHasta, cfg, zonaSnapshot);
     });
   });
 }
@@ -556,7 +560,7 @@ function buscarSalidas(ingresosData, hoyISO, fechaHasta, cfg) {
 /* ═══════════════════════════════════════════════════════════
    EMPAREJAR ingreso → salida más próxima posterior
 ═══════════════════════════════════════════════════════════ */
-function emparejarYRender(ingresosData, salidosPorDevice, fechaHasta, cfg) {
+function emparejarYRender(ingresosData, salidosPorDevice, fechaHasta, cfg, zonaSnapshot) {
   ingresosData.forEach(function(row) {
     if (!row.deviceId) return;
     var sals = salidosPorDevice[row.deviceId] || [];
