@@ -729,9 +729,6 @@ function renderResultados(data, fechaHasta) {
     icon.style.animation = "spin 1s linear infinite";
     icon.innerHTML = '<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/>';
     ptxt.textContent = "Verificando " + pendientes.length + " salida(s) pendiente(s) en segundo plano (hasta " + fechaHasta + ")…";
-    /* Mantener botones bloqueados durante verificación en segundo plano */
-    setLoading(true);
-    document.getElementById("loading").className = ""; /* ocultar spinner principal */
     setTimeout(function() { reVerificarPendientes(pendientes, fechaHasta); }, 20000);
   } else {
     pb.style.display = "none";
@@ -744,7 +741,19 @@ function renderResultados(data, fechaHasta) {
 
   document.getElementById("tabsSection").style.display = "block";
   document.getElementById("btnExportar").disabled = false;
-  setLoading(false);
+
+  /* Desbloquear solo si NO hay pendientes en segundo plano */
+  if (pendientes.length === 0) {
+    setLoading(false);
+  } else {
+    /* Hay pendientes — mantener bloqueado, solo ocultar spinner principal */
+    document.getElementById("loading").className = "";
+    document.getElementById("btnConsultar").disabled = true;
+    var btnT = document.getElementById("btnModTaller");
+    var btnN = document.getElementById("btnModNeumatico");
+    btnT.disabled = true; btnT.style.opacity = "0.5"; btnT.style.cursor = "not-allowed";
+    btnN.disabled = true; btnN.style.opacity = "0.5"; btnN.style.cursor = "not-allowed";
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
