@@ -255,9 +255,9 @@ var _zonas     = [];
 ═══════════════════════════════════════════════════════════ */
 function cambiarModulo(modulo) {
   if (_moduloActivo === modulo) return;
-  /* Recargar la página con parámetro único para forzar descarte de caché */
-  var url = window.location.href.split("?")[0];
-  window.location.href = url + "?m=" + modulo + "&t=" + Date.now();
+  /* Guardar módulo elegido y recargar el iframe limpio */
+  try { sessionStorage.setItem("hp_modulo", modulo); } catch(e) {}
+  location.reload(true); /* true = forzar recarga desde servidor, sin caché */
 }
 
 function _cambiarModuloInterno(modulo) {
@@ -336,22 +336,22 @@ function initialize() {
   document.getElementById("fechaDesde").addEventListener("change", validarRango);
   document.getElementById("fechaHasta").addEventListener("change", validarRango);
 
-  /* Detectar módulo desde parámetro URL ?m= */
-  var urlParams = new URLSearchParams(window.location.search);
-  var moduloParam = urlParams.get("m");
-  if (moduloParam && MODULOS[moduloParam]) {
-    _moduloActivo = moduloParam;
-    /* Actualizar botones toggle */
-    var btnT = document.getElementById("btnModTaller");
-    var btnN = document.getElementById("btnModNeumatico");
-    if (_moduloActivo === "taller") {
-      btnT.style.background = "#185fa5"; btnT.style.color = "#fff";
-      btnN.style.background = "#fff";    btnN.style.color = "#185fa5";
-    } else {
-      btnN.style.background = "#185fa5"; btnN.style.color = "#fff";
-      btnT.style.background = "#fff";    btnT.style.color = "#185fa5";
+  /* Detectar módulo desde sessionStorage (persistido al cambiar módulo) */
+  try {
+    var moduloGuardado = sessionStorage.getItem("hp_modulo");
+    if (moduloGuardado && MODULOS[moduloGuardado]) {
+      _moduloActivo = moduloGuardado;
+      var btnT = document.getElementById("btnModTaller");
+      var btnN = document.getElementById("btnModNeumatico");
+      if (_moduloActivo === "taller") {
+        btnT.style.background = "#185fa5"; btnT.style.color = "#fff";
+        btnN.style.background = "#fff";    btnN.style.color = "#185fa5";
+      } else {
+        btnN.style.background = "#185fa5"; btnN.style.color = "#fff";
+        btnT.style.background = "#fff";    btnT.style.color = "#185fa5";
+      }
     }
-  }
+  } catch(e) {}
 
   /* Etiquetas iniciales según módulo activo */
   document.getElementById("tituloModulo").textContent = "Control de Ingreso a " + CFG().label;
