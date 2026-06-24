@@ -430,7 +430,7 @@ function consultar() {
 
       /* Una sola llamada en lote para obtener GPS de todos los eventos */
       var gpsCallsFull = ingresosData.map(function(row) {
-        var tFin = new Date(new Date(row.activeFrom).getTime() + 60000).toISOString();
+        var tFin = new Date(new Date(row.activeFrom).getTime() + 300000).toISOString(); /* 5 min */
         return {
           method: "Get",
           params: {
