@@ -524,6 +524,9 @@ function consultar() {
       });
 
       function resolverZonasYSeguir() {
+        console.log("[HP] Módulo activo:", _moduloActivo,
+                    "| ZonaSnapshot:", zonaSnapshot.length, "zonas",
+                    "| Nombres:", zonaSnapshot.map(function(z){return z.name;}).join(", "));
         ingresosData.forEach(function(row, i) {
           var gps = gpsResults[i];
           if (gps) {
