@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Control de Ingreso a Taller</title>
   <link rel="stylesheet" href="taller.css"/>
+  <style>
+    .badge-tab {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #a32d2d; color: #fff;
+      font-size: 10px; font-weight: 700;
+      min-width: 18px; height: 18px;
+      border-radius: 9px; padding: 0 5px;
+      margin-left: 5px; vertical-align: middle;
+    }
+    .badge-tab:empty { display: none; }
+    .tab-btn-alert.active { color: #a32d2d; border-bottom-color: #a32d2d; }
+    .tab-btn-alert:hover  { color: #a32d2d; }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -95,6 +108,7 @@
         <button class="tab-btn active" onclick="switchTab('detalle',this)">Detalle de visitas</button>
         <button class="tab-btn" onclick="switchTab('resumenTaller',this)">Resumen por taller</button>
         <button class="tab-btn" onclick="switchTab('resumenUnidad',this)">Resumen por unidad</button>
+        <button class="tab-btn tab-btn-alert" id="tabEnTaller" onclick="switchTab('enTaller',this)">En taller <span id="badgeEnTaller" class="badge-tab"></span></button>
       </div>
 
       <!-- TAB DETALLE -->
@@ -125,6 +139,29 @@
         <div class="pending-bar" id="pendingBar" style="display:none">
           <svg id="pendingIcon" class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>
           <span id="pendingText"></span>
+        </div>
+      </div>
+
+      <!-- TAB EN TALLER -->
+      <div id="tab-enTaller" class="tab-content" style="margin-top:10px">
+        <div class="tbl-wrap">
+          <div class="tbl-scroll">
+            <table>
+              <colgroup>
+                <col class="col-num"/><col class="col-placa"/><col class="col-taller"/>
+                <col class="col-fecha"/><col class="col-hora"/><col style="width:110px"/>
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th><th>Placa</th><th>Taller</th>
+                  <th>F. ingreso</th><th>H. ingreso</th><th>Tiempo en taller</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyEnTaller">
+                <tr><td colspan="6" class="empty-msg">Sin unidades en taller actualmente.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -169,7 +206,7 @@ var ZONA_TYPE_ID = "b554";
 var RULE_INGRESO = "a7RRKYfrNO0mzzjvucYedMw";
 var RULE_SALIDA  = "aWpdEovsNMk-71-3VlP4RMA";
 var MAX_DIAS     = 7;
-var MIN_PERM_MIN = 30; /* omitir permanencias < 30 min */
+var MIN_PERM_MIN = 45; /* omitir permanencias < 45 min */
 
 var _api       = null;
 var _registros = [];
@@ -211,6 +248,9 @@ function cargarDispositivos() {
         var na = (a.licensePlate || a.name || "").toUpperCase();
         var nb = (b.licensePlate || b.name || "").toUpperCase();
         return na < nb ? -1 : na > nb ? 1 : 0;
+      })
+      .filter(function(d) {
+        return d.serialNumber && d.serialNumber.toString().trim() !== "";
       })
       .forEach(function(d) {
         _deviceMap[d.id] = d.licensePlate || d.name || d.id;
@@ -313,14 +353,14 @@ function consultar() {
           if (logs && logs.length > 0) {
             var lat = logs[0].latitude;
             var lon = logs[0].longitude;
-            row.zonaNombre = resolverZonaPorCoord(lat, lon) || "Zona desconocida";
+            row.zonaNombre = resolverZonaPorCoord(lat, lon) || "Sin zona";
           } else {
-            /* Fallback: si el evento trae zone.id, usar el nombre del mapa */
+            /* Fallback: buscar solo dentro de zonas tipo b554 ya cargadas */
             if (ev.zone && ev.zone.id) {
               var z = _zonas.find(function(z) { return z.id === ev.zone.id; });
-              row.zonaNombre = z ? z.name : (ev.zone.id || "Zona desconocida");
+              row.zonaNombre = z ? z.name : "Sin zona";
             } else {
-              row.zonaNombre = "Zona desconocida";
+              row.zonaNombre = "Sin zona";
             }
           }
           pendientes--;
@@ -537,6 +577,7 @@ function renderResultados(data, fechaHasta) {
 
   renderResumenTaller();
   renderResumenUnidad();
+  renderEnTaller();
   renderSidebarRanking(contTaller);
 
   document.getElementById("tabsSection").style.display = "block";
@@ -617,6 +658,7 @@ function finalizarVerificacion(encontrados, fechaHasta) {
 
   renderResumenTaller();
   renderResumenUnidad();
+  renderEnTaller();
 
   var restantes = _registros.filter(function(r) { return !r.salida; }).length;
   document.getElementById("stPendientes").textContent = restantes;
@@ -635,9 +677,42 @@ function finalizarVerificacion(encontrados, fechaHasta) {
     ptxt.textContent = "✓ Verificación completada — " + encontrados + " salida(s) encontrada(s).";
   } else {
     pb.className = "pending-bar";
-    icon.style.animation = "spin 1s linear infinite";
+    icon.style.animation = "none";
+    icon.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
     ptxt.textContent = restantes + " registro(s) aún sin salida confirmada hasta " + fechaHasta + ".";
   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EN TALLER — unidades sin salida confirmada
+═══════════════════════════════════════════════════════════ */
+function renderEnTaller() {
+  var ahora    = new Date();
+  var enTaller = _registros.filter(function(r) { return !r.salida; });
+  var badge    = document.getElementById("badgeEnTaller");
+  var tbody    = document.getElementById("tbodyEnTaller");
+
+  badge.textContent = enTaller.length > 0 ? enTaller.length : "";
+  tbody.innerHTML   = "";
+
+  if (enTaller.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">Sin unidades en taller actualmente.</td></tr>';
+    return;
+  }
+
+  enTaller.forEach(function(r, i) {
+    var tIn   = new Date(r.activeFrom);
+    var mins  = (ahora - tIn) / 60000;
+    var tr    = document.createElement("tr");
+    tr.innerHTML =
+      '<td style="color:#6c757d">' + (i+1) + '</td>' +
+      '<td><strong>' + esc(r.placa) + '</strong></td>' +
+      '<td title="' + esc(r.zonaNombre) + '">' + esc(r.zonaNombre) + '</td>' +
+      '<td>' + fmtFecha(tIn) + '</td>' +
+      '<td>' + fmtHora(tIn) + '</td>' +
+      '<td><span class="chip-time" style="background:#fcebeb;color:#791f1f">' + fmtMin(mins) + ' transcurridos</span></td>';
+    tbody.appendChild(tr);
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════
