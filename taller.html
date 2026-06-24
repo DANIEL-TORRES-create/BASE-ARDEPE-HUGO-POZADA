@@ -729,6 +729,9 @@ function renderResultados(data, fechaHasta) {
     icon.style.animation = "spin 1s linear infinite";
     icon.innerHTML = '<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/>';
     ptxt.textContent = "Verificando " + pendientes.length + " salida(s) pendiente(s) en segundo plano (hasta " + fechaHasta + ")…";
+    /* Mantener botones bloqueados durante verificación en segundo plano */
+    setLoading(true);
+    document.getElementById("loading").className = ""; /* ocultar spinner principal */
     setTimeout(function() { reVerificarPendientes(pendientes, fechaHasta); }, 20000);
   } else {
     pb.style.display = "none";
@@ -840,6 +843,8 @@ function finalizarVerificacion(encontrados, fechaHasta) {
     icon.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
     ptxt.textContent = restantes + " registro(s) aún sin salida confirmada hasta " + fechaHasta + ".";
   }
+  /* Desbloquear botones al terminar verificación */
+  setLoading(false);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1015,53 +1020,55 @@ function exportarXLS() {
   var wb = XLSX.utils.book_new();
   var ws = XLSX.utils.aoa_to_sheet(filas);
 
-  /* Estilo encabezado azul */
-  var headerStyle = {
-    font:  { bold: true, color: { rgb: "FFFFFF" } },
-    fill:  { fgColor: { rgb: "185FA5" } },
-    alignment: { horizontal: "center", vertical: "center" },
-    border: {
-      top:    { style: "thin", color: { rgb: "0C447C" } },
-      bottom: { style: "thin", color: { rgb: "0C447C" } },
-      left:   { style: "thin", color: { rgb: "0C447C" } },
-      right:  { style: "thin", color: { rgb: "0C447C" } }
-    }
-  };
-
-  var dataStyle = {
-    border: {
-      top:    { style: "thin", color: { rgb: "DEE2E6" } },
-      bottom: { style: "thin", color: { rgb: "DEE2E6" } },
-      left:   { style: "thin", color: { rgb: "DEE2E6" } },
-      right:  { style: "thin", color: { rgb: "DEE2E6" } }
-    },
-    alignment: { vertical: "center" }
-  };
-
-  /* Aplicar estilos celda a celda */
-  headers.forEach(function(h, ci) {
-    var addr = XLSX.utils.encode_cell({ r: 0, c: ci });
-    if (!ws[addr]) ws[addr] = { v: h, t: "s" };
-    ws[addr].s = headerStyle;
-  });
-
-  for (var ri = 1; ri < filas.length; ri++) {
-    filas[ri].forEach(function(val, ci) {
-      var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
-      if (!ws[addr]) ws[addr] = { v: val, t: typeof val === "number" ? "n" : "s" };
-      ws[addr].s = Object.assign({}, dataStyle);
-      /* Fila alterna */
-      if (ri % 2 === 0) ws[addr].s.fill = { fgColor: { rgb: "F0F5FB" } };
-    });
-  }
-
+  /* Anchos de columna */
   ws["!cols"] = [
-    { wch:4 },{ wch:14 },{ wch:20 },{ wch:14 },{ wch:10 },
+    { wch:4 },{ wch:14 },{ wch:22 },{ wch:14 },{ wch:10 },
     { wch:14 },{ wch:10 },{ wch:14 },{ wch:13 }
   ];
 
   /* Freeze primera fila */
   ws["!freeze"] = { xSplit: 0, ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft" };
+
+  /* Estilos — solo si la librería soporta estilos (xlsx-style o sheetjs pro) */
+  try {
+    var headerStyle = {
+      font:  { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+      fill:  { patternType: "solid", fgColor: { rgb: "185FA5" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: false },
+      border: {
+        top:    { style: "thin", color: { rgb: "0C447C" } },
+        bottom: { style: "thin", color: { rgb: "0C447C" } },
+        left:   { style: "thin", color: { rgb: "0C447C" } },
+        right:  { style: "thin", color: { rgb: "0C447C" } }
+      }
+    };
+    var dataStyleNormal = {
+      font: { sz: 10 },
+      border: {
+        top:    { style: "thin", color: { rgb: "DEE2E6" } },
+        bottom: { style: "thin", color: { rgb: "DEE2E6" } },
+        left:   { style: "thin", color: { rgb: "DEE2E6" } },
+        right:  { style: "thin", color: { rgb: "DEE2E6" } }
+      },
+      alignment: { vertical: "center" }
+    };
+    var dataStyleAlterna = JSON.parse(JSON.stringify(dataStyleNormal));
+    dataStyleAlterna.fill = { patternType: "solid", fgColor: { rgb: "EDF3FB" } };
+
+    headers.forEach(function(h, ci) {
+      var addr = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (ws[addr]) ws[addr].s = headerStyle;
+    });
+
+    for (var ri = 1; ri < filas.length; ri++) {
+      filas[ri].forEach(function(val, ci) {
+        var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
+        if (ws[addr]) ws[addr].s = (ri % 2 === 0) ? dataStyleAlterna : dataStyleNormal;
+      });
+    }
+  } catch(styleErr) {
+    /* Si estilos no están soportados, continuar sin ellos */
+  }
 
   XLSX.utils.book_append_sheet(wb, ws, "Detalle de Visitas");
 
@@ -1086,6 +1093,15 @@ function switchTab(tabId, btn) {
 function setLoading(on) {
   document.getElementById("loading").className = on ? "visible" : "";
   document.getElementById("btnConsultar").disabled = on;
+  /* Bloquear/desbloquear botones de módulo también */
+  var btnT = document.getElementById("btnModTaller");
+  var btnN = document.getElementById("btnModNeumatico");
+  btnT.disabled = on;
+  btnN.disabled = on;
+  btnT.style.opacity = on ? "0.5" : "1";
+  btnN.style.opacity = on ? "0.5" : "1";
+  btnT.style.cursor = on ? "not-allowed" : "pointer";
+  btnN.style.cursor = on ? "not-allowed" : "pointer";
 }
 
 function ocultarResultados() {
