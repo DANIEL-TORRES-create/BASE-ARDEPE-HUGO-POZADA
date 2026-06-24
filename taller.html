@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Control de Ingreso a Taller</title>
+  <link rel="stylesheet" href="taller.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- TÍTULO -->
+<div id="page-title">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+  Control de Ingreso a Taller
+</div>
+
+<div id="app">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside id="sidebar">
+    <div class="sb-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtros
+    </div>
+
+    <div class="fg">
+      <label>Fecha desde</label>
+      <input type="date" id="fechaDesde"/>
+    </div>
+    <div class="fg">
+      <label>Fecha hasta <span class="warn-badge">máx 7 días</span></label>
+      <input type="date" id="fechaHasta"/>
+    </div>
+    <div class="fg">
+      <label>Taller / Zona</label>
+      <select id="selZona"><option value="">Todos los talleres</option></select>
+    </div>
+    <div class="fg">
+      <label>Placa / Unidad</label>
+      <select id="selPlaca"><option value="">Todas las unidades</option></select>
+    </div>
+
+    <button class="btn-primary" id="btnConsultar" onclick="consultar()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Consultar
+    </button>
+    <button class="btn-export" id="btnExportar" onclick="exportarXLS()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar XLS
+    </button>
+
+    <hr class="divider"/>
+
+    <div id="sbRankingTaller" style="display:none">
+      <div class="sb-sub">Ingresos por taller</div>
+      <div id="sbBarrasTaller"></div>
+      <hr class="divider" style="margin:6px 0"/>
+    </div>
+    <div id="sbRankingUnidad" style="display:none">
+      <div class="sb-sub">Top unidades</div>
+      <div id="sbTopUnidad"></div>
+      <hr class="divider" style="margin:6px 0"/>
+    </div>
+    <div id="sbRankingTiempo" style="display:none">
+      <div class="sb-sub">Mayor tiempo en taller</div>
+      <div id="sbTopTiempo"></div>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main id="main">
+
+    <div class="alert-info" id="alertaInfo" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="alertaTexto"></span>
+    </div>
+
+    <div class="stats-row" id="statsRow" style="display:none">
+      <div class="stat-card"><div class="stat-val" id="stTotal">0</div><div class="stat-lbl">Total ingresos</div></div>
+      <div class="stat-card"><div class="stat-val" id="stPendientes">0</div><div class="stat-lbl">Sin salida aún</div></div>
+      <div class="stat-card"><div class="stat-val" id="stPromedio">—</div><div class="stat-lbl">Permanencia promedio</div></div>
+      <div class="stat-card"><div class="stat-val" id="stTopTaller">—</div><div class="stat-lbl">Taller más visitado</div></div>
+    </div>
+
+    <div id="loading">
+      <svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>
+      Consultando API de Geotab…
+    </div>
+
+    <div id="tabsSection" style="display:none">
+      <div class="tabs-bar">
+        <button class="tab-btn active" onclick="switchTab('detalle',this)">Detalle de visitas</button>
+        <button class="tab-btn" onclick="switchTab('resumenTaller',this)">Resumen por taller</button>
+        <button class="tab-btn" onclick="switchTab('resumenUnidad',this)">Resumen por unidad</button>
+      </div>
+
+      <!-- TAB DETALLE -->
+      <div id="tab-detalle" class="tab-content active" style="margin-top:10px">
+        <div class="tbl-wrap">
+          <div class="tbl-scroll">
+            <table>
+              <colgroup>
+                <col class="col-num"/><col class="col-placa"/><col class="col-taller"/>
+                <col class="col-fecha"/><col class="col-hora"/>
+                <col class="col-fecha"/><col class="col-hora"/>
+                <col class="col-tiempo"/><col class="col-estado"/>
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th><th>Placa</th><th>Taller</th>
+                  <th>F. ingreso</th><th>H. ingreso</th>
+                  <th>F. salida</th><th>H. salida</th>
+                  <th>Permanencia</th><th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyDetalle">
+                <tr><td colspan="9" class="empty-msg">Realiza una consulta para ver los datos.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="pending-bar" id="pendingBar" style="display:none">
+          <svg id="pendingIcon" class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>
+          <span id="pendingText"></span>
+        </div>
+      </div>
+
+      <!-- TAB RESUMEN TALLER -->
+      <div id="tab-resumenTaller" class="tab-content" style="margin-top:10px">
+        <div class="res-grid" id="resGridTaller"></div>
+      </div>
+
+      <!-- TAB RESUMEN UNIDAD -->
+      <div id="tab-resumenUnidad" class="tab-content" style="margin-top:10px">
+        <div class="tbl-wrap">
+          <div class="tbl-scroll">
+            <table>
+              <colgroup>
+                <col style="width:90px"/><col style="width:60px"/>
+                <col style="width:160px"/><col style="width:90px"/>
+                <col style="width:90px"/><col style="width:80px"/>
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Placa</th><th>Ingresos</th><th>Talleres visitados</th>
+                  <th>Tiempo acum.</th><th>Promedio</th><th>Sin salida</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyUnidad">
+                <tr><td colspan="6" class="empty-msg">Sin datos.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════ */
+var ZONA_TYPE_ID = "b554";
+var RULE_INGRESO = "a7RRKYfrNO0mzzjvucYedMw";
+var RULE_SALIDA  = "aWpdEovsNMk-71-3VlP4RMA";
+var MAX_DIAS     = 7;
+var MIN_PERM_MIN = 30; /* omitir permanencias < 30 min */
+
+var _api       = null;
+var _registros = [];
+var _deviceMap = {}; /* id → placa/nombre */
+var _zonas     = []; /* [{id, name, points}] */
+
+/* ═══════════════════════════════════════════════════════════
+   INIT — MyGeotab inyecta api y state
+═══════════════════════════════════════════════════════════ */
+geotab.addin.tallerIngresos = function(api, state) {
+  _api = api;
+  initialize();
+};
+
+function initialize() {
+  var hoy = toDateStr(new Date());
+  document.getElementById("fechaDesde").value = hoy;
+  document.getElementById("fechaHasta").value = hoy;
+  document.getElementById("fechaDesde").addEventListener("change", validarRango);
+  document.getElementById("fechaHasta").addEventListener("change", validarRango);
+
+  /* Cargar dispositivos activos al iniciar */
+  cargarDispositivos();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARGAR DISPOSITIVOS ACTIVOS (una sola vez al init)
+═══════════════════════════════════════════════════════════ */
+function cargarDispositivos() {
+  _api.call("Get", {
+    typeName: "Device",
+    search: { isArchived: false }
+  }, function(devices) {
+    _deviceMap = {};
+    var sel = document.getElementById("selPlaca");
+    sel.innerHTML = '<option value="">Todas las unidades</option>';
+    (devices || [])
+      .sort(function(a, b) {
+        var na = (a.licensePlate || a.name || "").toUpperCase();
+        var nb = (b.licensePlate || b.name || "").toUpperCase();
+        return na < nb ? -1 : na > nb ? 1 : 0;
+      })
+      .forEach(function(d) {
+        _deviceMap[d.id] = d.licensePlate || d.name || d.id;
+        var opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = _deviceMap[d.id];
+        sel.appendChild(opt);
+      });
+  }, function(err) {
+    console.warn("No se pudieron cargar dispositivos:", err);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VALIDAR RANGO
+═══════════════════════════════════════════════════════════ */
+function validarRango() {
+  var desde = new Date(document.getElementById("fechaDesde").value);
+  var hasta = new Date(document.getElementById("fechaHasta").value);
+  var diff  = (hasta - desde) / 86400000;
+  if (diff < 0) {
+    document.getElementById("fechaHasta").value = toDateStr(desde);
+  } else if (diff > MAX_DIAS) {
+    var lim = new Date(desde);
+    lim.setDate(lim.getDate() + MAX_DIAS);
+    document.getElementById("fechaHasta").value = toDateStr(lim);
+    alert("El rango máximo permitido es " + MAX_DIAS + " días.");
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CONSULTAR
+═══════════════════════════════════════════════════════════ */
+function consultar() {
+  var desde = document.getElementById("fechaDesde").value;
+  var hasta = document.getElementById("fechaHasta").value;
+  if (!desde || !hasta) { alert("Selecciona un rango de fechas."); return; }
+
+  setLoading(true);
+  ocultarResultados();
+  _registros = [];
+
+  var desdeISO = desde + "T00:00:00.000Z";
+  var hastaISO = hasta + "T23:59:59.000Z";
+
+  /* 1) Traer zonas tipo ZONA_TYPE_ID */
+  _api.call("Get", {
+    typeName: "Zone",
+    search: { zoneTypeSearch: { id: ZONA_TYPE_ID } }
+  }, function(zonas) {
+    _zonas = zonas || [];
+
+    /* 2) Traer ExceptionEvents de ingreso */
+    var searchIngreso = {
+      fromDate: desdeISO,
+      toDate:   hastaISO,
+      ruleSearch: { id: RULE_INGRESO }
+    };
+
+    /* Si el usuario filtró por placa específica, agrega deviceSearch */
+    var selPlacaVal = document.getElementById("selPlaca").value;
+    if (selPlacaVal) searchIngreso.deviceSearch = { id: selPlacaVal };
+
+    _api.call("Get", {
+      typeName: "ExceptionEvent",
+      search: searchIngreso
+    }, function(ingresos) {
+      if (!ingresos || ingresos.length === 0) {
+        setLoading(false);
+        mostrarAlerta("No se encontraron ingresos a taller en el período seleccionado.");
+        return;
+      }
+
+      ingresos.sort(function(a, b) { return new Date(a.activeFrom) - new Date(b.activeFrom); });
+
+      /* 3) Resolver nombre de zona por coordenadas GPS del evento */
+      var hoyISO = toDateStr(new Date()) + "T23:59:59.000Z";
+      var pendientes = ingresos.length;
+      var ingresosData = [];
+
+      ingresos.forEach(function(ev, idx) {
+        var row = {
+          idx:       idx,
+          deviceId:  ev.device ? ev.device.id : null,
+          activeFrom: ev.activeFrom,
+          zonaNombre: null,
+          salida:     null
+        };
+        ingresosData.push(row);
+
+        /* Obtener coordenada GPS exacta del instante del ingreso */
+        _api.call("Get", {
+          typeName: "LogRecord",
+          search: {
+            deviceSearch: { id: ev.device ? ev.device.id : "b1" },
+            fromDate: ev.activeFrom,
+            toDate:   ev.activeFrom
+          }
+        }, function(logs) {
+          if (logs && logs.length > 0) {
+            var lat = logs[0].latitude;
+            var lon = logs[0].longitude;
+            row.zonaNombre = resolverZonaPorCoord(lat, lon) || "Zona desconocida";
+          } else {
+            /* Fallback: si el evento trae zone.id, usar el nombre del mapa */
+            if (ev.zone && ev.zone.id) {
+              var z = _zonas.find(function(z) { return z.id === ev.zone.id; });
+              row.zonaNombre = z ? z.name : (ev.zone.id || "Zona desconocida");
+            } else {
+              row.zonaNombre = "Zona desconocida";
+            }
+          }
+          pendientes--;
+          if (pendientes === 0) buscarSalidas(ingresosData, hoyISO, hasta);
+        }, function() {
+          row.zonaNombre = "Zona desconocida";
+          pendientes--;
+          if (pendientes === 0) buscarSalidas(ingresosData, hoyISO, hasta);
+        });
+      });
+    }, function(err) {
+      setLoading(false);
+      alert("Error consultando ingresos: " + (err.message || err));
+    });
+  }, function(err) {
+    setLoading(false);
+    alert("Error consultando zonas: " + (err.message || err));
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESOLVER ZONA POR COORDENADAS (point-in-bounding-box)
+═══════════════════════════════════════════════════════════ */
+function resolverZonaPorCoord(lat, lon) {
+  for (var i = 0; i < _zonas.length; i++) {
+    var z = _zonas[i];
+    if (!z.points || z.points.length === 0) continue;
+    var lats = z.points.map(function(p) { return p.y; });
+    var lons = z.points.map(function(p) { return p.x; });
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+    if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
+      return z.name;
+    }
+  }
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BUSCAR SALIDAS para cada device
+═══════════════════════════════════════════════════════════ */
+function buscarSalidas(ingresosData, hoyISO, fechaHasta) {
+  var deviceIds = [];
+  ingresosData.forEach(function(r) {
+    if (r.deviceId && deviceIds.indexOf(r.deviceId) === -1) deviceIds.push(r.deviceId);
+  });
+
+  if (deviceIds.length === 0) {
+    renderResultados(ingresosData, fechaHasta);
+    return;
+  }
+
+  var salidosPorDevice = {};
+  var count = deviceIds.length;
+  var desdeISO = document.getElementById("fechaDesde").value + "T00:00:00.000Z";
+
+  deviceIds.forEach(function(deviceId) {
+    _api.call("Get", {
+      typeName: "ExceptionEvent",
+      search: {
+        fromDate:     desdeISO,
+        toDate:       hoyISO,
+        ruleSearch:   { id: RULE_SALIDA },
+        deviceSearch: { id: deviceId }
+      }
+    }, function(salidas) {
+      salidosPorDevice[deviceId] = (salidas || []).sort(function(a, b) {
+        return new Date(a.activeFrom) - new Date(b.activeFrom);
+      });
+      count--;
+      if (count === 0) emparejarYRender(ingresosData, salidosPorDevice, fechaHasta);
+    }, function() {
+      salidosPorDevice[deviceId] = [];
+      count--;
+      if (count === 0) emparejarYRender(ingresosData, salidosPorDevice, fechaHasta);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EMPAREJAR ingreso → salida más próxima posterior
+═══════════════════════════════════════════════════════════ */
+function emparejarYRender(ingresosData, salidosPorDevice, fechaHasta) {
+  ingresosData.forEach(function(row) {
+    if (!row.deviceId) return;
+    var sals = salidosPorDevice[row.deviceId] || [];
+    var tIn  = new Date(row.activeFrom);
+    for (var i = 0; i < sals.length; i++) {
+      if (new Date(sals[i].activeFrom) > tIn) {
+        row.salida = sals[i].activeFrom;
+        break;
+      }
+    }
+  });
+
+  /* Filtrar por zona seleccionada en dropdown */
+  var zonaFiltro = document.getElementById("selZona").value;
+
+  /* Omitir permanencias < MIN_PERM_MIN y aplicar filtro de zona */
+  var filtrado = ingresosData.filter(function(r) {
+    if (zonaFiltro && r.zonaNombre !== zonaFiltro) return false;
+    if (r.salida) {
+      var mins = (new Date(r.salida) - new Date(r.activeFrom)) / 60000;
+      if (mins < MIN_PERM_MIN) return false;
+    }
+    return true;
+  });
+
+  renderResultados(filtrado, fechaHasta);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER RESULTADOS
+═══════════════════════════════════════════════════════════ */
+function renderResultados(data, fechaHasta) {
+  _registros = data.map(function(r) {
+    return Object.assign({}, r, { placa: _deviceMap[r.deviceId] || r.deviceId || "—" });
+  });
+
+  _registros.sort(function(a, b) { return new Date(a.activeFrom) - new Date(b.activeFrom); });
+
+  /* Poblar dropdown zonas con las que aparecen en resultado */
+  var zonasEnResultado = [];
+  _registros.forEach(function(r) {
+    if (r.zonaNombre && zonasEnResultado.indexOf(r.zonaNombre) === -1) zonasEnResultado.push(r.zonaNombre);
+  });
+  zonasEnResultado.sort();
+  var selZ = document.getElementById("selZona");
+  var selZVal = selZ.value;
+  selZ.innerHTML = '<option value="">Todos los talleres</option>';
+  zonasEnResultado.forEach(function(z) {
+    var opt = document.createElement("option");
+    opt.value = z; opt.textContent = z;
+    if (z === selZVal) opt.selected = true;
+    selZ.appendChild(opt);
+  });
+
+  /* Stats */
+  var pendientes  = _registros.filter(function(r) { return !r.salida; });
+  var completados = _registros.filter(function(r) { return !!r.salida; });
+  var tiemposMin  = completados.map(function(r) {
+    return (new Date(r.salida) - new Date(r.activeFrom)) / 60000;
+  });
+  var promedio = tiemposMin.length
+    ? tiemposMin.reduce(function(a, b) { return a + b; }, 0) / tiemposMin.length
+    : null;
+
+  var contTaller = {};
+  _registros.forEach(function(r) { contTaller[r.zonaNombre] = (contTaller[r.zonaNombre] || 0) + 1; });
+  var topTaller = Object.keys(contTaller).sort(function(a, b) {
+    return contTaller[b] - contTaller[a];
+  })[0] || "—";
+
+  document.getElementById("stTotal").textContent     = _registros.length;
+  document.getElementById("stPendientes").textContent = pendientes.length;
+  document.getElementById("stPromedio").textContent   = promedio !== null ? fmtMin(promedio) : "—";
+  document.getElementById("stTopTaller").textContent  = topTaller;
+  document.getElementById("statsRow").style.display   = "grid";
+
+  mostrarAlerta(
+    "Consulta basada en fecha de ingreso. Se omiten permanencias menores a 30 min. " +
+    "Salidas pendientes verificadas hasta " + fechaHasta + "."
+  );
+
+  /* Tabla detalle */
+  var tbody = document.getElementById("tbodyDetalle");
+  tbody.innerHTML = "";
+  if (_registros.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-msg">No hay registros para los filtros aplicados.</td></tr>';
+  } else {
+    _registros.forEach(function(r, i) {
+      var tIn = new Date(r.activeFrom);
+      var tr  = document.createElement("tr");
+      var fSal = "", hSal = "", perm = "", pill = "";
+
+      if (r.salida) {
+        var tSal = new Date(r.salida);
+        var mins = (tSal - tIn) / 60000;
+        fSal = fmtFecha(tSal); hSal = fmtHora(tSal);
+        perm = '<span class="chip-time">' + fmtMin(mins) + '</span>';
+        pill = '<span class="pill pill-done"><span class="dot dot-blue"></span>Completado</span>';
+      } else {
+        fSal = '<span class="no-sal">Sin salida aún</span>';
+        hSal = "—"; perm = "—";
+        pill = '<span class="pill pill-in"><span class="dot dot-red"></span>En taller</span>';
+      }
+
+      tr.innerHTML =
+        '<td style="color:#6c757d">' + (i+1) + '</td>' +
+        '<td><strong>' + esc(r.placa) + '</strong></td>' +
+        '<td title="' + esc(r.zonaNombre) + '">' + esc(r.zonaNombre) + '</td>' +
+        '<td>' + fmtFecha(tIn) + '</td><td>' + fmtHora(tIn) + '</td>' +
+        '<td>' + fSal + '</td><td>' + hSal + '</td>' +
+        '<td>' + perm + '</td><td>' + pill + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* Pending bar */
+  var pb   = document.getElementById("pendingBar");
+  var ptxt = document.getElementById("pendingText");
+  var icon = document.getElementById("pendingIcon");
+
+  if (pendientes.length > 0) {
+    pb.style.display = "flex";
+    pb.className = "pending-bar";
+    icon.style.animation = "spin 1s linear infinite";
+    icon.innerHTML = '<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/>';
+    ptxt.textContent = "Verificando " + pendientes.length + " salida(s) pendiente(s) en segundo plano (hasta " + fechaHasta + ")…";
+    setTimeout(function() { reVerificarPendientes(pendientes, fechaHasta); }, 20000);
+  } else {
+    pb.style.display = "none";
+  }
+
+  renderResumenTaller();
+  renderResumenUnidad();
+  renderSidebarRanking(contTaller);
+
+  document.getElementById("tabsSection").style.display = "block";
+  document.getElementById("btnExportar").disabled = false;
+  setLoading(false);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RE-VERIFICAR PENDIENTES EN SEGUNDO PLANO
+═══════════════════════════════════════════════════════════ */
+function reVerificarPendientes(pendientes, fechaHasta) {
+  var hoyISO    = toDateStr(new Date()) + "T23:59:59.000Z";
+  var encontrados = 0;
+  var count       = pendientes.length;
+
+  pendientes.forEach(function(r) {
+    if (!r.deviceId) { finSiListo(); return; }
+    _api.call("Get", {
+      typeName: "ExceptionEvent",
+      search: {
+        fromDate:     r.activeFrom,
+        toDate:       hoyISO,
+        ruleSearch:   { id: RULE_SALIDA },
+        deviceSearch: { id: r.deviceId }
+      }
+    }, function(salidas) {
+      var tIn = new Date(r.activeFrom);
+      (salidas || []).sort(function(a, b) { return new Date(a.activeFrom) - new Date(b.activeFrom); });
+      for (var i = 0; i < (salidas || []).length; i++) {
+        if (new Date(salidas[i].activeFrom) > tIn) {
+          /* Verificar que la permanencia cumpla mínimo */
+          var mins = (new Date(salidas[i].activeFrom) - tIn) / 60000;
+          if (mins >= MIN_PERM_MIN) {
+            r.salida = salidas[i].activeFrom;
+            encontrados++;
+          }
+          break;
+        }
+      }
+      finSiListo();
+    }, function() { finSiListo(); });
+
+    function finSiListo() {
+      count--;
+      if (count === 0) finalizarVerificacion(encontrados, fechaHasta);
+    }
+  });
+}
+
+function finalizarVerificacion(encontrados, fechaHasta) {
+  /* Reconstruir tabla con datos actualizados */
+  var tbody = document.getElementById("tbodyDetalle");
+  tbody.innerHTML = "";
+  _registros.forEach(function(r, i) {
+    var tIn = new Date(r.activeFrom);
+    var tr  = document.createElement("tr");
+    var fSal = "", hSal = "", perm = "", pill = "";
+    if (r.salida) {
+      var tSal = new Date(r.salida);
+      var mins = (tSal - tIn) / 60000;
+      fSal = fmtFecha(tSal); hSal = fmtHora(tSal);
+      perm = '<span class="chip-time">' + fmtMin(mins) + '</span>';
+      pill = '<span class="pill pill-done"><span class="dot dot-blue"></span>Completado</span>';
+    } else {
+      fSal = '<span class="no-sal">Sin salida aún</span>';
+      hSal = "—"; perm = "—";
+      pill = '<span class="pill pill-in"><span class="dot dot-red"></span>En taller</span>';
+    }
+    tr.innerHTML =
+      '<td style="color:#6c757d">' + (i+1) + '</td>' +
+      '<td><strong>' + esc(r.placa) + '</strong></td>' +
+      '<td title="' + esc(r.zonaNombre) + '">' + esc(r.zonaNombre) + '</td>' +
+      '<td>' + fmtFecha(tIn) + '</td><td>' + fmtHora(tIn) + '</td>' +
+      '<td>' + fSal + '</td><td>' + hSal + '</td>' +
+      '<td>' + perm + '</td><td>' + pill + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  renderResumenTaller();
+  renderResumenUnidad();
+
+  var restantes = _registros.filter(function(r) { return !r.salida; }).length;
+  document.getElementById("stPendientes").textContent = restantes;
+
+  /* Actualizar pending bar */
+  var pb   = document.getElementById("pendingBar");
+  var ptxt = document.getElementById("pendingText");
+  var icon = document.getElementById("pendingIcon");
+
+  pb.style.display = "flex";
+
+  if (restantes === 0) {
+    pb.className = "pending-bar done";
+    icon.style.animation = "none";
+    icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+    ptxt.textContent = "✓ Verificación completada — " + encontrados + " salida(s) encontrada(s).";
+  } else {
+    pb.className = "pending-bar";
+    icon.style.animation = "spin 1s linear infinite";
+    ptxt.textContent = restantes + " registro(s) aún sin salida confirmada hasta " + fechaHasta + ".";
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESUMEN POR TALLER
+═══════════════════════════════════════════════════════════ */
+function renderResumenTaller() {
+  var byT = {};
+  _registros.forEach(function(r) {
+    if (!byT[r.zonaNombre]) byT[r.zonaNombre] = { ingresos:0, sin:0, mins:[] };
+    byT[r.zonaNombre].ingresos++;
+    if (!r.salida) { byT[r.zonaNombre].sin++; }
+    else { byT[r.zonaNombre].mins.push((new Date(r.salida) - new Date(r.activeFrom)) / 60000); }
+  });
+  var keys = Object.keys(byT).sort(function(a,b){ return byT[b].ingresos - byT[a].ingresos; });
+  var maxI = keys.length ? byT[keys[0]].ingresos : 1;
+  var grid = document.getElementById("resGridTaller");
+  grid.innerHTML = "";
+  keys.forEach(function(t) {
+    var d    = byT[t];
+    var pct  = Math.round((d.ingresos / maxI) * 100);
+    var acum = d.mins.length ? d.mins.reduce(function(a,b){ return a+b; },0) : null;
+    var prom = d.mins.length ? acum / d.mins.length : null;
+    var card = document.createElement("div");
+    card.className = "res-card";
+    card.innerHTML =
+      '<div class="res-card-name" title="' + esc(t) + '">' + esc(t) + '</div>' +
+      '<div class="res-card-meta">' + d.ingresos + ' ingreso(s) · ' + d.sin + ' sin salida</div>' +
+      '<div class="res-bar-bg"><div class="res-bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="res-stats">' +
+        '<div class="res-stat"><strong>' + (acum !== null ? fmtMin(acum) : "—") + '</strong>Tiempo acumulado</div>' +
+        '<div class="res-stat"><strong>' + (prom !== null ? fmtMin(prom) : "—") + '</strong>Promedio</div>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESUMEN POR UNIDAD
+═══════════════════════════════════════════════════════════ */
+function renderResumenUnidad() {
+  var byU = {};
+  _registros.forEach(function(r) {
+    var k = r.placa;
+    if (!byU[k]) byU[k] = { ingresos:0, talleres:[], sin:0, mins:[] };
+    byU[k].ingresos++;
+    if (byU[k].talleres.indexOf(r.zonaNombre) === -1) byU[k].talleres.push(r.zonaNombre);
+    if (!r.salida) { byU[k].sin++; }
+    else { byU[k].mins.push((new Date(r.salida) - new Date(r.activeFrom)) / 60000); }
+  });
+  var keys = Object.keys(byU).sort(function(a,b){ return byU[b].ingresos - byU[a].ingresos; });
+  var tbody = document.getElementById("tbodyUnidad");
+  tbody.innerHTML = "";
+  if (keys.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">Sin datos.</td></tr>';
+    return;
+  }
+  keys.forEach(function(u) {
+    var d    = byU[u];
+    var acum = d.mins.length ? d.mins.reduce(function(a,b){ return a+b; },0) : null;
+    var prom = d.mins.length ? acum / d.mins.length : null;
+    var tr   = document.createElement("tr");
+    tr.innerHTML =
+      '<td><strong>' + esc(u) + '</strong></td>' +
+      '<td>' + d.ingresos + '</td>' +
+      '<td style="font-size:11px;color:#6c757d;white-space:normal">' + esc(d.talleres.join(", ")) + '</td>' +
+      '<td>' + (acum !== null ? '<span class="chip-time">' + fmtMin(acum) + '</span>' : "—") + '</td>' +
+      '<td>' + (prom !== null ? fmtMin(prom) : "—") + '</td>' +
+      '<td>' + (d.sin > 0
+        ? '<span class="pill pill-in"><span class="dot dot-red"></span>' + d.sin + '</span>'
+        : '<span class="pill pill-done"><span class="dot dot-blue"></span>0</span>') + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SIDEBAR RANKING
+═══════════════════════════════════════════════════════════ */
+function renderSidebarRanking(contTaller) {
+  var talleres = Object.keys(contTaller).sort(function(a,b){ return contTaller[b] - contTaller[a]; });
+  var maxI = talleres.length ? contTaller[talleres[0]] : 1;
+
+  var sbB = document.getElementById("sbBarrasTaller");
+  sbB.innerHTML = "";
+  talleres.forEach(function(t) {
+    var pct = Math.round((contTaller[t] / maxI) * 100);
+    sbB.innerHTML +=
+      '<div class="bar-row">' +
+        '<span class="bar-name" title="' + esc(t) + '">' + esc(t) + '</span>' +
+        '<div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+        '<span class="bar-count">' + contTaller[t] + '</span>' +
+      '</div>';
+  });
+  document.getElementById("sbRankingTaller").style.display = talleres.length ? "block" : "none";
+
+  var byU = {};
+  _registros.forEach(function(r) { byU[r.placa] = (byU[r.placa] || 0) + 1; });
+  var topU = Object.keys(byU).sort(function(a,b){ return byU[b]-byU[a]; }).slice(0,5);
+  var sbU  = document.getElementById("sbTopUnidad");
+  sbU.innerHTML = "";
+  topU.forEach(function(u) {
+    sbU.innerHTML += '<div class="top-row"><span>' + esc(u) + '</span><span class="top-val">' + byU[u] + ' ingreso(s)</span></div>';
+  });
+  document.getElementById("sbRankingUnidad").style.display = topU.length ? "block" : "none";
+
+  var byT2 = {};
+  _registros.forEach(function(r) {
+    if (r.salida) byT2[r.zonaNombre] = (byT2[r.zonaNombre] || 0) + ((new Date(r.salida) - new Date(r.activeFrom)) / 60000);
+  });
+  var topT = Object.keys(byT2).sort(function(a,b){ return byT2[b]-byT2[a]; }).slice(0,5);
+  var sbT  = document.getElementById("sbTopTiempo");
+  sbT.innerHTML = "";
+  topT.forEach(function(t) {
+    sbT.innerHTML += '<div class="top-row"><span>' + esc(t) + '</span><span class="top-val">' + fmtMin(byT2[t]) + '</span></div>';
+  });
+  document.getElementById("sbRankingTiempo").style.display = topT.length ? "block" : "none";
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORTAR XLS con formato tabla
+═══════════════════════════════════════════════════════════ */
+function exportarXLS() {
+  if (!_registros || _registros.length === 0) { alert("No hay datos para exportar."); return; }
+
+  var headers = ["#","Placa","Taller","Fecha Ingreso","Hora Ingreso","Fecha Salida","Hora Salida","Permanencia","Estado"];
+  var filas   = [headers];
+
+  _registros.forEach(function(r, i) {
+    var tIn = new Date(r.activeFrom);
+    var fS = "", hS = "", perm = "", estado = "";
+    if (r.salida) {
+      var tSal = new Date(r.salida);
+      fS    = fmtFecha(tSal); hS = fmtHora(tSal);
+      perm  = fmtMin((tSal - tIn) / 60000);
+      estado = "Completado";
+    } else {
+      fS = "Sin salida aún"; hS = "—"; perm = "—"; estado = "En taller";
+    }
+    filas.push([ i+1, r.placa, r.zonaNombre, fmtFecha(tIn), fmtHora(tIn), fS, hS, perm, estado ]);
+  });
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(filas);
+
+  /* Estilo encabezado azul */
+  var headerStyle = {
+    font:  { bold: true, color: { rgb: "FFFFFF" } },
+    fill:  { fgColor: { rgb: "185FA5" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top:    { style: "thin", color: { rgb: "0C447C" } },
+      bottom: { style: "thin", color: { rgb: "0C447C" } },
+      left:   { style: "thin", color: { rgb: "0C447C" } },
+      right:  { style: "thin", color: { rgb: "0C447C" } }
+    }
+  };
+
+  var dataStyle = {
+    border: {
+      top:    { style: "thin", color: { rgb: "DEE2E6" } },
+      bottom: { style: "thin", color: { rgb: "DEE2E6" } },
+      left:   { style: "thin", color: { rgb: "DEE2E6" } },
+      right:  { style: "thin", color: { rgb: "DEE2E6" } }
+    },
+    alignment: { vertical: "center" }
+  };
+
+  /* Aplicar estilos celda a celda */
+  headers.forEach(function(h, ci) {
+    var addr = XLSX.utils.encode_cell({ r: 0, c: ci });
+    if (!ws[addr]) ws[addr] = { v: h, t: "s" };
+    ws[addr].s = headerStyle;
+  });
+
+  for (var ri = 1; ri < filas.length; ri++) {
+    filas[ri].forEach(function(val, ci) {
+      var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
+      if (!ws[addr]) ws[addr] = { v: val, t: typeof val === "number" ? "n" : "s" };
+      ws[addr].s = Object.assign({}, dataStyle);
+      /* Fila alterna */
+      if (ri % 2 === 0) ws[addr].s.fill = { fgColor: { rgb: "F0F5FB" } };
+    });
+  }
+
+  ws["!cols"] = [
+    { wch:4 },{ wch:14 },{ wch:20 },{ wch:14 },{ wch:10 },
+    { wch:14 },{ wch:10 },{ wch:14 },{ wch:13 }
+  ];
+
+  /* Freeze primera fila */
+  ws["!freeze"] = { xSplit: 0, ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft" };
+
+  XLSX.utils.book_append_sheet(wb, ws, "Detalle de Visitas");
+
+  var desde = document.getElementById("fechaDesde").value.replace(/-/g,"");
+  var hasta  = document.getElementById("fechaHasta").value.replace(/-/g,"");
+  XLSX.writeFile(wb, "IngresosTaller_" + desde + "_" + hasta + ".xlsx");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════════════ */
+function switchTab(tabId, btn) {
+  document.querySelectorAll(".tab-content").forEach(function(el){ el.classList.remove("active"); });
+  document.querySelectorAll(".tab-btn").forEach(function(el){ el.classList.remove("active"); });
+  document.getElementById("tab-" + tabId).classList.add("active");
+  btn.classList.add("active");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILIDADES
+═══════════════════════════════════════════════════════════ */
+function setLoading(on) {
+  document.getElementById("loading").className = on ? "visible" : "";
+  document.getElementById("btnConsultar").disabled = on;
+}
+
+function ocultarResultados() {
+  document.getElementById("statsRow").style.display    = "none";
+  document.getElementById("tabsSection").style.display = "none";
+  document.getElementById("alertaInfo").style.display  = "none";
+  document.getElementById("pendingBar").style.display  = "none";
+  document.getElementById("btnExportar").disabled      = true;
+}
+
+function mostrarAlerta(texto) {
+  document.getElementById("alertaTexto").textContent = texto;
+  document.getElementById("alertaInfo").style.display = "flex";
+}
+
+function toDateStr(d) {
+  return d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
+}
+
+function fmtFecha(d) {
+  return String(d.getDate()).padStart(2,"0") + "/" +
+    String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear();
+}
+
+function fmtHora(d) {
+  return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+}
+
+function fmtMin(m) {
+  var h = Math.floor(m / 60);
+  var min = Math.round(m % 60);
+  return h + "h " + String(min).padStart(2,"0") + "m";
+}
+
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
