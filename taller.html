@@ -299,12 +299,15 @@ function consultar() {
   var desdeISO = desde + "T00:00:00.000Z";
   var hastaISO = hasta + "T23:59:59.000Z";
 
-  /* 1) Traer zonas tipo ZONA_TYPE_ID */
+  /* 1) Traer TODAS las zonas y filtrar en cliente las que tengan zoneType b554 */
   _api.call("Get", {
     typeName: "Zone",
-    search: { zoneTypeSearch: { id: ZONA_TYPE_ID } }
-  }, function(zonas) {
-    _zonas = zonas || [];
+    search: {}
+  }, function(todasZonas) {
+    _zonas = (todasZonas || []).filter(function(z) {
+      if (!z.zoneTypes || z.zoneTypes.length === 0) return false;
+      return z.zoneTypes.some(function(zt) { return zt.id === ZONA_TYPE_ID; });
+    });
 
     /* 2) Traer ExceptionEvents de ingreso */
     var searchIngreso = {
