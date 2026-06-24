@@ -494,6 +494,7 @@ function consultar() {
    p.y = latitud, p.x = longitud — igual que api_geotab.gs
 ═══════════════════════════════════════════════════════════ */
 function resolverZonaPorCoord(lat, lon) {
+  var DELTA = 0.005; /* ~500m tolerancia para GPS en borde de zona */
   for (var i = 0; i < _zonas.length; i++) {
     var zona = _zonas[i];
     if (!zona.points || zona.points.length === 0) continue;
@@ -503,7 +504,8 @@ function resolverZonaPorCoord(lat, lon) {
     var maxLat = Math.max.apply(null, lats);
     var minLon = Math.min.apply(null, lons);
     var maxLon = Math.max.apply(null, lons);
-    if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
+    if (lat >= (minLat - DELTA) && lat <= (maxLat + DELTA) &&
+        lon >= (minLon - DELTA) && lon <= (maxLon + DELTA)) {
       return zona.name;
     }
   }
