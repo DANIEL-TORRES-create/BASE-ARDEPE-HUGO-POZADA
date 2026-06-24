@@ -23,7 +23,7 @@
     #btnModTaller, #btnModNeumatico { transition: background .2s, color .2s; }
     #btnModTaller:hover, #btnModNeumatico:hover { opacity: .85; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
 
@@ -1009,9 +1009,13 @@ function renderSidebarRanking(contTaller) {
 function exportarXLS() {
   if (!_registros || _registros.length === 0) { alert("No hay datos para exportar."); return; }
 
-  var headers = ["#","Placa","Taller","Fecha Ingreso","Hora Ingreso","Fecha Salida","Hora Salida","Permanencia","Estado"];
-  var filas   = [headers];
+  var cfg      = CFG();
+  var modLabel = cfg.label;
+  var desde    = document.getElementById("fechaDesde").value.replace(/-/g,"");
+  var hasta    = document.getElementById("fechaHasta").value.replace(/-/g,"");
 
+  /* Construir filas de datos */
+  var filas = [];
   _registros.forEach(function(r, i) {
     var tIn = new Date(r.activeFrom);
     var fS = "", hS = "", perm = "", estado = "";
@@ -1026,64 +1030,76 @@ function exportarXLS() {
     filas.push([ i+1, r.placa, r.zonaNombre, fmtFecha(tIn), fmtHora(tIn), fS, hS, perm, estado ]);
   });
 
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(filas);
+  /* Crear workbook con ExcelJS */
+  var wb = new ExcelJS.Workbook();
+  wb.creator = "Control HP";
+  var ws = wb.addWorksheet("Detalle de Visitas", {
+    views: [{ state: "frozen", ySplit: 1 }]
+  });
 
-  /* Anchos de columna */
-  ws["!cols"] = [
-    { wch:4 },{ wch:14 },{ wch:22 },{ wch:14 },{ wch:10 },
-    { wch:14 },{ wch:10 },{ wch:14 },{ wch:13 }
+  /* Columnas con anchos */
+  ws.columns = [
+    { header: "#",             key: "num",    width: 5  },
+    { header: "Placa",         key: "placa",  width: 14 },
+    { header: modLabel,        key: "zona",   width: 24 },
+    { header: "Fecha Ingreso", key: "fi",     width: 14 },
+    { header: "Hora Ingreso",  key: "hi",     width: 12 },
+    { header: "Fecha Salida",  key: "fs",     width: 14 },
+    { header: "Hora Salida",   key: "hs",     width: 12 },
+    { header: "Permanencia",   key: "perm",   width: 14 },
+    { header: "Estado",        key: "estado", width: 14 }
   ];
 
-  /* Freeze primera fila */
-  ws["!freeze"] = { xSplit: 0, ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft" };
-
-  /* Estilos — solo si la librería soporta estilos (xlsx-style o sheetjs pro) */
-  try {
-    var headerStyle = {
-      font:  { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
-      fill:  { patternType: "solid", fgColor: { rgb: "185FA5" } },
-      alignment: { horizontal: "center", vertical: "center", wrapText: false },
-      border: {
-        top:    { style: "thin", color: { rgb: "0C447C" } },
-        bottom: { style: "thin", color: { rgb: "0C447C" } },
-        left:   { style: "thin", color: { rgb: "0C447C" } },
-        right:  { style: "thin", color: { rgb: "0C447C" } }
-      }
+  /* Estilo encabezado */
+  var headerRow = ws.getRow(1);
+  headerRow.eachCell(function(cell) {
+    cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185FA5" } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border    = {
+      top:    { style: "thin", color: { argb: "FF0C447C" } },
+      bottom: { style: "thin", color: { argb: "FF0C447C" } },
+      left:   { style: "thin", color: { argb: "FF0C447C" } },
+      right:  { style: "thin", color: { argb: "FF0C447C" } }
     };
-    var dataStyleNormal = {
-      font: { sz: 10 },
-      border: {
-        top:    { style: "thin", color: { rgb: "DEE2E6" } },
-        bottom: { style: "thin", color: { rgb: "DEE2E6" } },
-        left:   { style: "thin", color: { rgb: "DEE2E6" } },
-        right:  { style: "thin", color: { rgb: "DEE2E6" } }
-      },
-      alignment: { vertical: "center" }
-    };
-    var dataStyleAlterna = JSON.parse(JSON.stringify(dataStyleNormal));
-    dataStyleAlterna.fill = { patternType: "solid", fgColor: { rgb: "EDF3FB" } };
+  });
+  headerRow.height = 20;
 
-    headers.forEach(function(h, ci) {
-      var addr = XLSX.utils.encode_cell({ r: 0, c: ci });
-      if (ws[addr]) ws[addr].s = headerStyle;
+  /* Agregar filas de datos con formato */
+  filas.forEach(function(fila, ri) {
+    var row = ws.addRow(fila);
+    var isAlterna = (ri % 2 === 0);
+    row.eachCell(function(cell) {
+      cell.font      = { size: 10 };
+      cell.fill      = { type: "pattern", pattern: "solid",
+                         fgColor: { argb: isAlterna ? "FFEDF3FB" : "FFFFFFFF" } };
+      cell.border    = {
+        top:    { style: "hair", color: { argb: "FFDEE2E6" } },
+        bottom: { style: "hair", color: { argb: "FFDEE2E6" } },
+        left:   { style: "hair", color: { argb: "FFDEE2E6" } },
+        right:  { style: "hair", color: { argb: "FFDEE2E6" } }
+      };
+      cell.alignment = { vertical: "middle" };
     });
+    /* Centrar columnas #, horas y estado */
+    [1, 5, 7, 9].forEach(function(col) {
+      row.getCell(col).alignment = { horizontal: "center", vertical: "middle" };
+    });
+    row.height = 16;
+  });
 
-    for (var ri = 1; ri < filas.length; ri++) {
-      filas[ri].forEach(function(val, ci) {
-        var addr = XLSX.utils.encode_cell({ r: ri, c: ci });
-        if (ws[addr]) ws[addr].s = (ri % 2 === 0) ? dataStyleAlterna : dataStyleNormal;
-      });
-    }
-  } catch(styleErr) {
-    /* Si estilos no están soportados, continuar sin ellos */
-  }
-
-  XLSX.utils.book_append_sheet(wb, ws, "Detalle de Visitas");
-
-  var desde = document.getElementById("fechaDesde").value.replace(/-/g,"");
-  var hasta  = document.getElementById("fechaHasta").value.replace(/-/g,"");
-  XLSX.writeFile(wb, "IngresosTaller_" + desde + "_" + hasta + ".xlsx");
+  /* Descargar */
+  wb.xlsx.writeBuffer().then(function(buffer) {
+    var blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href   = url;
+    a.download = "Ingresos" + modLabel + "_" + desde + "_" + hasta + ".xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════
