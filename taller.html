@@ -255,12 +255,6 @@ var _zonas     = [];
 ═══════════════════════════════════════════════════════════ */
 function cambiarModulo(modulo) {
   if (_moduloActivo === modulo) return;
-  /* Guardar módulo elegido y recargar el iframe limpio */
-  try { sessionStorage.setItem("hp_modulo", modulo); } catch(e) {}
-  location.reload(true); /* true = forzar recarga desde servidor, sin caché */
-}
-
-function _cambiarModuloInterno(modulo) {
   _moduloActivo = modulo;
   var cfg = CFG();
 
@@ -336,22 +330,7 @@ function initialize() {
   document.getElementById("fechaDesde").addEventListener("change", validarRango);
   document.getElementById("fechaHasta").addEventListener("change", validarRango);
 
-  /* Detectar módulo desde sessionStorage (persistido al cambiar módulo) */
-  try {
-    var moduloGuardado = sessionStorage.getItem("hp_modulo");
-    if (moduloGuardado && MODULOS[moduloGuardado]) {
-      _moduloActivo = moduloGuardado;
-      var btnT = document.getElementById("btnModTaller");
-      var btnN = document.getElementById("btnModNeumatico");
-      if (_moduloActivo === "taller") {
-        btnT.style.background = "#185fa5"; btnT.style.color = "#fff";
-        btnN.style.background = "#fff";    btnN.style.color = "#185fa5";
-      } else {
-        btnN.style.background = "#185fa5"; btnN.style.color = "#fff";
-        btnT.style.background = "#fff";    btnT.style.color = "#185fa5";
-      }
-    }
-  } catch(e) {}
+  /* Módulo por defecto: taller — se cambia con los botones toggle */
 
   /* Etiquetas iniciales según módulo activo */
   document.getElementById("tituloModulo").textContent = "Control de Ingreso a " + CFG().label;
@@ -499,29 +478,36 @@ function consultar() {
         };
       });
 
-      /* Geotab limita ExecuteMultiCall a 100 calls por lote — dividir en chunks */
-      var CHUNK = 100;
+      /* Procesar chunks de GPS secuencialmente con delay para evitar OverLimitException */
+      var CHUNK = 50; /* reducido a 50 para menor presión sobre el límite */
+      var DELAY = 2000; /* ms entre chunks — 2 segundos, seguro bajo el límite de 1000/min */
       var chunks = [];
       for (var ci = 0; ci < gpsCallsFull.length; ci += CHUNK) {
         chunks.push(gpsCallsFull.slice(ci, ci + CHUNK));
       }
 
       var gpsResults = new Array(ingresosData.length);
-      var chunksRestantes = chunks.length;
 
-      chunks.forEach(function(chunk, chunkIdx) {
+      function procesarChunk(chunkIdx) {
+        if (chunkIdx >= chunks.length) {
+          resolverZonasYSeguir();
+          return;
+        }
+        var chunk = chunks[chunkIdx];
         var offsetBase = chunkIdx * CHUNK;
         _api.call("ExecuteMultiCall", { calls: chunk }, function(results) {
           (results || []).forEach(function(r, ri) {
             gpsResults[offsetBase + ri] = (r && r.length > 0) ? r[0] : null;
           });
-          chunksRestantes--;
-          if (chunksRestantes === 0) resolverZonasYSeguir();
+          /* Esperar DELAY ms antes del siguiente chunk */
+          setTimeout(function() { procesarChunk(chunkIdx + 1); }, DELAY);
         }, function() {
-          chunksRestantes--;
-          if (chunksRestantes === 0) resolverZonasYSeguir();
+          /* En caso de error en el chunk, continuar con el siguiente */
+          setTimeout(function() { procesarChunk(chunkIdx + 1); }, DELAY);
         });
-      });
+      }
+
+      procesarChunk(0);
 
       function resolverZonasYSeguir() {
         console.log("[HP] Módulo activo:", _moduloActivo,
