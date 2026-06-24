@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Control de Ingreso a Taller</title>
+  <title>Control de Ingreso a Taller v2.1</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <link rel="stylesheet" href="taller.css"/>
   <style>
     .badge-tab {
@@ -277,13 +280,39 @@ function cambiarModulo(modulo) {
   /* Actualizar etiqueta pending bar si existe */
   document.getElementById("pendingBar").style.display = "none";
 
-  /* Limpiar resultados anteriores */
+  /* Limpiar TODO el estado anterior completamente */
   ocultarResultados();
   _registros = [];
   _zonas = [];
 
-  /* Repoblar dropdown de zonas con el nuevo tipo */
+  /* Limpiar dropdowns */
   document.getElementById("selZona").innerHTML = '<option value="">Todos (' + cfg.label + ')</option>';
+
+  /* Resetear tabla detalle */
+  document.getElementById("tbodyDetalle").innerHTML =
+    '<tr><td colspan="9" class="empty-msg">Selecciona un rango y consulta.</td></tr>';
+  document.getElementById("tbodyUnidad").innerHTML =
+    '<tr><td colspan="6" class="empty-msg">Sin datos.</td></tr>';
+  document.getElementById("resGridTaller").innerHTML = "";
+  document.getElementById("tbodyEnTaller").innerHTML =
+    '<tr><td colspan="6" class="empty-msg">Sin unidades en taller actualmente.</td></tr>';
+
+  /* Resetear stats */
+  document.getElementById("stTotal").textContent = "0";
+  document.getElementById("stPendientes").textContent = "0";
+  document.getElementById("stPromedio").textContent = "—";
+  document.getElementById("stTopTaller").textContent = "—";
+
+  /* Resetear badge tab En taller */
+  document.getElementById("badgeEnTaller").textContent = "";
+
+  /* Limpiar sidebar rankings */
+  document.getElementById("sbBarrasTaller").innerHTML = "";
+  document.getElementById("sbTopUnidad").innerHTML = "";
+  document.getElementById("sbTopTiempo").innerHTML = "";
+  document.getElementById("sbRankingTaller").style.display = "none";
+  document.getElementById("sbRankingUnidad").style.display = "none";
+  document.getElementById("sbRankingTiempo").style.display = "none";
 }
 
 /* ═══════════════════════════════════════════════════════════
