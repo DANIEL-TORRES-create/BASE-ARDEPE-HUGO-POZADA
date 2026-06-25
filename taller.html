@@ -1088,6 +1088,20 @@ function exportarXLS() {
     row.height = 16;
   });
 
+  /* Fila de total */
+  var totalMins = 0;
+  _registros.forEach(function(r) {
+    if (r.salida) totalMins += (new Date(r.salida) - new Date(r.activeFrom)) / 60000;
+  });
+  var totalRow = ws.addRow(["", "", "", "", "", "", "", fmtMin(totalMins), ""]);
+  totalRow.getCell(7).value = "TOTAL:";
+  totalRow.getCell(7).font  = { bold: true, size: 10 };
+  totalRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
+  totalRow.getCell(8).font  = { bold: true, size: 11, color: { argb: "FF185FA5" } };
+  totalRow.getCell(8).fill  = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6F1FB" } };
+  totalRow.getCell(8).alignment = { horizontal: "center", vertical: "middle" };
+  totalRow.height = 18;
+
   /* Descargar */
   wb.xlsx.writeBuffer().then(function(buffer) {
     var blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
