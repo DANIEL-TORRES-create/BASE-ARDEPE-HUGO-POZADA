@@ -1006,6 +1006,12 @@ function renderSidebarRanking(contTaller) {
 /* ═══════════════════════════════════════════════════════════
    EXPORTAR XLS con formato tabla
 ═══════════════════════════════════════════════════════════ */
+function fmtMinExcel(m) {
+  var h   = Math.floor(m / 60);
+  var min = Math.round(m % 60);
+  return String(h).padStart(2,"0") + ":" + String(min).padStart(2,"0");
+}
+
 function exportarXLS() {
   if (!_registros || _registros.length === 0) { alert("No hay datos para exportar."); return; }
 
@@ -1022,7 +1028,7 @@ function exportarXLS() {
     if (r.salida) {
       var tSal = new Date(r.salida);
       fS    = fmtFecha(tSal); hS = fmtHora(tSal);
-      perm  = fmtMin((tSal - tIn) / 60000);
+      perm  = fmtMinExcel((tSal - tIn) / 60000);
       estado = "Completado";
     } else {
       fS = "Sin salida aún"; hS = "—"; perm = "—"; estado = "En taller";
@@ -1093,7 +1099,7 @@ function exportarXLS() {
   _registros.forEach(function(r) {
     if (r.salida) totalMins += (new Date(r.salida) - new Date(r.activeFrom)) / 60000;
   });
-  var totalRow = ws.addRow(["", "", "", "", "", "", "", fmtMin(totalMins), ""]);
+  var totalRow = ws.addRow(["", "", "", "", "", "", "", fmtMinExcel(totalMins), ""]);
   totalRow.getCell(7).value = "TOTAL:";
   totalRow.getCell(7).font  = { bold: true, size: 10 };
   totalRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
