@@ -1024,16 +1024,18 @@ function exportarXLS() {
   var filas = [];
   _registros.forEach(function(r, i) {
     var tIn = new Date(r.activeFrom);
-    var fS = "", hS = "", perm = "", estado = "";
+    var fS = "", hS = "", permVal = null, permStr = "—", estado = "";
     if (r.salida) {
       var tSal = new Date(r.salida);
-      fS    = fmtFecha(tSal); hS = fmtHora(tSal);
-      perm  = fmtMinExcel((tSal - tIn) / 60000);
-      estado = "Completado";
+      var mins = (tSal - tIn) / 60000;
+      fS      = fmtFecha(tSal); hS = fmtHora(tSal);
+      permVal = mins / 1440; /* fracción de día para Excel */
+      permStr = fmtMinExcel(mins);
+      estado  = "Completado";
     } else {
-      fS = "Sin salida aún"; hS = "—"; perm = "—"; estado = "En taller";
+      fS = "Sin salida aún"; hS = "—"; estado = "En taller";
     }
-    filas.push([ i+1, r.placa, r.zonaNombre, fmtFecha(tIn), fmtHora(tIn), fS, hS, perm, estado ]);
+    filas.push([ i+1, r.placa, r.zonaNombre, fmtFecha(tIn), fmtHora(tIn), fS, hS, permVal, estado ]);
   });
 
   /* Crear workbook con ExcelJS */
@@ -1052,7 +1054,7 @@ function exportarXLS() {
     { header: "Hora Ingreso",  key: "hi",     width: 12 },
     { header: "Fecha Salida",  key: "fs",     width: 14 },
     { header: "Hora Salida",   key: "hs",     width: 12 },
-    { header: "Permanencia",   key: "perm",   width: 14 },
+    { header: "Permanencia",   key: "perm",   width: 14, style: { numFmt: "[h]:mm" } },
     { header: "Estado",        key: "estado", width: 14 }
   ];
 
@@ -1091,6 +1093,10 @@ function exportarXLS() {
     [1, 5, 7, 9].forEach(function(col) {
       row.getCell(col).alignment = { horizontal: "center", vertical: "middle" };
     });
+    /* Formato hora sumable en columna permanencia (col 8) */
+    var permCell = row.getCell(8);
+    permCell.numFmt = "[h]:mm";
+    permCell.alignment = { horizontal: "center", vertical: "middle" };
     row.height = 16;
   });
 
@@ -1099,7 +1105,8 @@ function exportarXLS() {
   _registros.forEach(function(r) {
     if (r.salida) totalMins += (new Date(r.salida) - new Date(r.activeFrom)) / 60000;
   });
-  var totalRow = ws.addRow(["", "", "", "", "", "", "", fmtMinExcel(totalMins), ""]);
+  var totalRow = ws.addRow(["", "", "", "", "", "", "", totalMins / 1440, ""]);
+  totalRow.getCell(8).numFmt = "[h]:mm";
   totalRow.getCell(7).value = "TOTAL:";
   totalRow.getCell(7).font  = { bold: true, size: 10 };
   totalRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
