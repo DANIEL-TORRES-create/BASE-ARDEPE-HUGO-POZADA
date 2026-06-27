@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Control de Kilómetros v1.0</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <link rel="stylesheet" href="controlKM.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+</head>
+<body>
+
+<!-- TÍTULO -->
+<div id="km-header">
+  <div id="km-title">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span>Control de Kilómetros</span>
+  </div>
+  <div id="km-header-actions">
+    <div id="km-mes-badge"></div>
+    <div class="toggle-bar">
+      <button id="btnDetalle" class="toggle-btn active" onclick="switchVista('detalle', this)">Detalle</button>
+      <button id="btnResumen" class="toggle-btn" onclick="switchVista('resumen', this)">Resumen</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="km-app">
+
+  <!-- SIDEBAR -->
+  <aside id="km-sidebar">
+    <div class="sb-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtros
+    </div>
+
+    <div class="fg">
+      <label>Mes</label>
+      <select id="selMes"></select>
+    </div>
+    <div class="fg">
+      <label>Tipo</label>
+      <select id="selTipo">
+        <option value="">Todos</option>
+        <option value="LOCAL">Local</option>
+        <option value="PROVINCIA">Provincia</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Marca</label>
+      <select id="selMarca"><option value="">Todas</option></select>
+    </div>
+    <div class="fg">
+      <label>Modelo</label>
+      <select id="selModelo"><option value="">Todos</option></select>
+    </div>
+    <div class="fg">
+      <label>Placa</label>
+      <select id="selPlaca"><option value="">Todas</option></select>
+    </div>
+    <div class="fg">
+      <label>Estado</label>
+      <select id="selEstado">
+        <option value="">Todos</option>
+        <option value="ACTUALIZADO">Actualizado</option>
+        <option value="DESACTUALIZADO">Desactualizado</option>
+        <option value="PARCIAL">Parcial</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="CERRADO">Cerrado</option>
+      </select>
+    </div>
+
+    <button class="btn-apply" onclick="aplicarFiltros()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Aplicar filtros
+    </button>
+
+    <hr class="divider"/>
+
+    <!-- Mini stats sidebar -->
+    <div id="sb-stats" style="display:none">
+      <div class="sb-stat-row">
+        <span class="sb-stat-lbl">Total unidades</span>
+        <span class="sb-stat-val" id="sbTotal">—</span>
+      </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-lbl">Actualizadas hoy</span>
+        <span class="sb-stat-val" style="color:#27500a" id="sbActualizadas">—</span>
+      </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-lbl">Pendientes</span>
+        <span class="sb-stat-val" style="color:#791f1f" id="sbPendientes">—</span>
+      </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-lbl">KM acumulados</span>
+        <span class="sb-stat-val" id="sbKM">—</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="km-main">
+
+    <!-- LOADING -->
+    <div id="km-loading">
+      <svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>
+      Cargando datos…
+    </div>
+
+    <!-- ═══ VISTA DETALLE ═══ -->
+    <div id="vista-detalle" class="vista active">
+
+      <!-- Barra acciones -->
+      <div id="km-actions-bar">
+        <div id="km-fila-sel" style="display:none">
+          <span id="km-sel-label" class="sel-label"></span>
+          <button class="btn-accion btn-edit" id="btnEditar" onclick="abrirModalEditar()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Editar
+          </button>
+        </div>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn-accion btn-masivo" onclick="abrirModalMasivo()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Carga masiva
+          </button>
+          <button class="btn-accion btn-plantilla" onclick="descargarPlantilla()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Plantilla
+          </button>
+          <button class="btn-accion btn-export" id="btnExportar" onclick="exportarXLS()" disabled>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="tbl-wrap">
+        <div class="tbl-scroll">
+          <table id="km-table">
+            <thead>
+              <tr>
+                <th style="width:34px">#</th>
+                <th style="width:80px">Placa</th>
+                <th style="width:70px">Tipo</th>
+                <th style="width:90px">Marca</th>
+                <th style="width:90px">Modelo</th>
+                <th style="width:90px">Odo Inicial</th>
+                <th style="width:100px">F. Inicial</th>
+                <th style="width:90px">Odo Final</th>
+                <th style="width:100px">F. Final</th>
+                <th style="width:74px">Total KM</th>
+                <th style="width:68px">Galones</th>
+                <th style="width:64px">Rend.</th>
+                <th style="width:72px">Soles</th>
+                <th style="width:72px">Costo KM</th>
+                <th style="width:130px">Últ. Actualiz.</th>
+                <th style="width:110px">Usuario</th>
+                <th style="width:100px">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="km-tbody">
+              <tr><td colspan="17" class="empty-msg">Selecciona un mes y aplica los filtros.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ VISTA RESUMEN ═══ -->
+    <div id="vista-resumen" class="vista">
+
+      <!-- Stats cards -->
+      <div class="stats-grid" id="res-stats" style="display:none">
+        <div class="stat-card">
+          <div class="stat-val" id="resKMTotal">—</div>
+          <div class="stat-lbl">Total KM del mes</div>
+          <div class="stat-sub" id="resKMSub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="resGalTotal">—</div>
+          <div class="stat-lbl">Galones totales</div>
+          <div class="stat-sub" id="resGalSub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="resRend">—</div>
+          <div class="stat-lbl">Rendimiento promedio</div>
+          <div class="stat-sub" id="resRendSub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="resCosto">—</div>
+          <div class="stat-lbl">Costo KM promedio</div>
+          <div class="stat-sub" id="resCostoSub"></div>
+        </div>
+      </div>
+
+      <!-- Gráficos fila 1 -->
+      <div class="charts-grid" id="res-charts" style="display:none">
+
+        <!-- Dona galones por agrupación -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Galones abastecidos</span>
+            <select class="chart-filter" id="filtGalones" onchange="renderGalones()">
+              <option value="tipo">Por tipo</option>
+              <option value="marca">Por marca</option>
+              <option value="modelo">Por modelo</option>
+            </select>
+          </div>
+          <div class="donut-wrap" id="donutWrap">
+            <svg id="donutSvg" width="110" height="110" viewBox="0 0 36 36" aria-hidden="true">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="var(--border-color)" stroke-width="5"/>
+            </svg>
+            <div class="donut-legend" id="donutLegend"></div>
+          </div>
+        </div>
+
+        <!-- Barras rendimiento -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Rendimiento (km/gal)</span>
+            <select class="chart-filter" id="filtRend" onchange="renderRendimiento()">
+              <option value="modelo">Por modelo</option>
+              <option value="tipo">Por tipo</option>
+              <option value="marca">Por marca</option>
+            </select>
+          </div>
+          <div id="barRendimiento"></div>
+          <div class="chart-avg" id="avgRend"></div>
+        </div>
+
+        <!-- Barras costo KM -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Costo por km (S/.)</span>
+            <select class="chart-filter" id="filtCosto" onchange="renderCosto()">
+              <option value="tipo">Por tipo</option>
+              <option value="marca">Por marca</option>
+              <option value="modelo">Por modelo</option>
+            </select>
+          </div>
+          <div id="barCosto"></div>
+        </div>
+
+        <!-- Ranking unidades -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Ranking rendimiento</span>
+            <select class="chart-filter" id="filtRanking" onchange="renderRanking()">
+              <option value="unidad">Por unidad</option>
+              <option value="tipo">Por tipo</option>
+              <option value="marca">Por marca</option>
+              <option value="modelo">Por modelo</option>
+            </select>
+          </div>
+          <div class="rank-section">
+            <div class="rank-label rank-top">Top 3</div>
+            <table class="rank-table" id="rankTop"></table>
+          </div>
+          <div class="rank-section" style="margin-top:10px">
+            <div class="rank-label rank-bot">Bottom 3</div>
+            <table class="rank-table" id="rankBot"></table>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="res-empty" class="empty-msg" style="padding:40px;text-align:center">
+        Aplica los filtros para ver el resumen.
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL EDITAR (carga por unidad) -->
+<div id="modal-editar" class="modal-overlay" style="display:none" onclick="cerrarModalSiOverlay(event,'modal-editar')">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Carga por unidad
+    </div>
+    <div class="mfg">
+      <label>Mes</label>
+      <div class="mfi mfi-lock" id="editMes">—</div>
+    </div>
+    <div class="mfg">
+      <label>Placa</label>
+      <div class="mfi mfi-lock" id="editPlaca">—</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="mfg">
+        <label>Galones</label>
+        <input type="number" id="editGalones" placeholder="0.00" min="0" step="0.01" class="mfi-input"/>
+      </div>
+      <div class="mfg">
+        <label>Soles</label>
+        <input type="number" id="editSoles" placeholder="0.00" min="0" step="0.01" class="mfi-input"/>
+      </div>
+    </div>
+    <div class="edit-ult-reg" id="editUltReg"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('modal-editar')">Cancelar</button>
+      <button class="btn-modal-save" id="btnGuardar" onclick="guardarEdicion()">Guardar</button>
+    </div>
+    <div id="editMsg" class="edit-msg" style="display:none"></div>
+  </div>
+</div>
+
+<!-- MODAL CARGA MASIVA -->
+<div id="modal-masivo" class="modal-overlay" style="display:none" onclick="cerrarModalSiOverlay(event,'modal-masivo')">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Carga masiva
+    </div>
+    <div class="mfg">
+      <label>Selecciona el archivo Excel (.xlsx)</label>
+      <input type="file" id="masivoFile" accept=".xlsx" class="mfi-input" onchange="validarArchivo()"/>
+    </div>
+    <div id="masivoPreview" style="display:none">
+      <div class="masivo-info" id="masivoInfo"></div>
+      <div class="masivo-errores" id="masivoErrores" style="display:none"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('modal-masivo')">Cancelar</button>
+      <button class="btn-modal-save" id="btnCargarMasivo" onclick="ejecutarCargaMasiva()" disabled>Cargar</button>
+    </div>
+    <div id="masivoMsg" class="edit-msg" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════ */
+var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyigAI5rMd_7MmNjeq69QYdeEjYnchKHOPYdIMufG1rcX7u3JOkyl5PE8w59adOJ-4D/exec";
+
+/* ═══════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+═══════════════════════════════════════════════════════════ */
+var _api          = null;
+var _userName     = "";
+var _datos        = [];      /* filas crudas del script */
+var _catalogo     = {};      /* placa → { marca, modelo, tipo } */
+var _datosFiltrados = [];    /* filas después de filtros */
+var _filaSelIdx   = -1;      /* índice en _datosFiltrados de la fila seleccionada */
+var _vistaActual  = "detalle";
+var _masivoFilas  = [];      /* filas parseadas del excel masivo */
+
+/* ═══════════════════════════════════════════════════════════
+   INIT MyGeotab
+═══════════════════════════════════════════════════════════ */
+geotab.addin.controlKM = function(api, state) {
+  _api = api;
+  state.getSession(function(s) { _userName = s.userName || "sistema"; });
+  initialize();
+};
+
+function initialize() {
+  cargarMeses();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARGAR LISTA DE MESES desde el script
+═══════════════════════════════════════════════════════════ */
+function cargarMeses() {
+  setLoading(true);
+  fetchScript("meses", {}, function(res) {
+    if (!res.success || !res.data || res.data.length === 0) {
+      setLoading(false);
+      return;
+    }
+    var sel = document.getElementById("selMes");
+    sel.innerHTML = "";
+    res.data.forEach(function(m) {
+      var opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = formatearMes(m);
+      sel.appendChild(opt);
+    });
+    /* Cargar datos del mes actual por defecto */
+    cargarDatosMes(res.data[0]);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARGAR DATOS DEL MES desde el script
+═══════════════════════════════════════════════════════════ */
+function cargarDatosMes(mes) {
+  setLoading(true);
+  fetchScript("leer", { mes: mes }, function(res) {
+    setLoading(false);
+    if (!res.success) { mostrarError("Error al cargar datos."); return; }
+    _datos = res.data || [];
+
+    /* Construir catálogo desde los datos (marca, modelo, tipo vienen del catalogo en el script) */
+    _catalogo = {};
+    _datos.forEach(function(r) {
+      _catalogo[r.placa] = { marca: r.marca || "", modelo: r.modelo || "", tipo: r.tipo || "" };
+    });
+
+    /* Poblar filtros de marca y modelo */
+    poblarFiltrosMarcaModelo();
+
+    /* Actualizar badge mes */
+    document.getElementById("km-mes-badge").textContent = formatearMes(mes);
+
+    aplicarFiltros();
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   POBLAR FILTROS MARCA / MODELO / PLACA
+═══════════════════════════════════════════════════════════ */
+function poblarFiltrosMarcaModelo() {
+  var marcas   = [...new Set(_datos.map(function(r) { return r.marca; }).filter(Boolean))].sort();
+  var modelos  = [...new Set(_datos.map(function(r) { return r.modelo; }).filter(Boolean))].sort();
+  var placas   = _datos.map(function(r) { return r.placa; }).sort();
+
+  var selM = document.getElementById("selMarca");
+  selM.innerHTML = '<option value="">Todas</option>';
+  marcas.forEach(function(m) { selM.innerHTML += '<option value="' + esc(m) + '">' + esc(m) + '</option>'; });
+
+  var selMo = document.getElementById("selModelo");
+  selMo.innerHTML = '<option value="">Todos</option>';
+  modelos.forEach(function(m) { selMo.innerHTML += '<option value="' + esc(m) + '">' + esc(m) + '</option>'; });
+
+  var selP = document.getElementById("selPlaca");
+  selP.innerHTML = '<option value="">Todas</option>';
+  placas.forEach(function(p) { selP.innerHTML += '<option value="' + esc(p) + '">' + esc(p) + '</option>'; });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   APLICAR FILTROS
+═══════════════════════════════════════════════════════════ */
+function aplicarFiltros() {
+  /* Si cambió el mes, recargar datos */
+  var mesSel = document.getElementById("selMes").value;
+  var mesActual = _datos.length > 0 ? _datos[0].mes : null;
+  if (mesSel !== mesActual) {
+    cargarDatosMes(mesSel);
+    return;
+  }
+
+  var tipo   = document.getElementById("selTipo").value;
+  var marca  = document.getElementById("selMarca").value;
+  var modelo = document.getElementById("selModelo").value;
+  var placa  = document.getElementById("selPlaca").value;
+  var estado = document.getElementById("selEstado").value;
+
+  _datosFiltrados = _datos.filter(function(r) {
+    if (tipo   && r.tipo   !== tipo)   return false;
+    if (marca  && r.marca  !== marca)  return false;
+    if (modelo && r.modelo !== modelo) return false;
+    if (placa  && r.placa  !== placa)  return false;
+    if (estado && r.estado !== estado) return false;
+    return true;
+  });
+
+  /* Deseleccionar fila */
+  _filaSelIdx = -1;
+  ocultarLapiz();
+
+  renderTabla();
+  actualizarSidebarStats();
+
+  if (_vistaActual === "resumen") renderResumen();
+
+  document.getElementById("btnExportar").disabled = _datosFiltrados.length === 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER TABLA DETALLE
+═══════════════════════════════════════════════════════════ */
+function renderTabla() {
+  var tbody = document.getElementById("km-tbody");
+  tbody.innerHTML = "";
+
+  if (_datosFiltrados.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="17" class="empty-msg">No hay registros para los filtros aplicados.</td></tr>';
+    return;
+  }
+
+  _datosFiltrados.forEach(function(r, i) {
+    var tr = document.createElement("tr");
+    tr.dataset.idx = i;
+    tr.onclick = function() { seleccionarFila(i, this); };
+
+    var estadoBadge = '<span class="badge badge-' + r.estado.toLowerCase() + '">' + r.estado + '</span>';
+
+    tr.innerHTML =
+      '<td class="num-col">' + (i+1) + '</td>' +
+      '<td><strong>' + esc(r.placa) + '</strong></td>' +
+      '<td>' + esc(r.tipo || "—") + '</td>' +
+      '<td>' + esc(r.marca || "—") + '</td>' +
+      '<td>' + esc(r.modelo || "—") + '</td>' +
+      '<td class="num-col">' + fmtNum(r.odoInicial) + '</td>' +
+      '<td>' + esc(r.fechaOdoInicial || "—") + '</td>' +
+      '<td class="num-col">' + fmtNum(r.odoFinal) + '</td>' +
+      '<td>' + esc(r.fechaOdoFinal || "—") + '</td>' +
+      '<td class="num-col">' + fmtNum(r.totalKM) + '</td>' +
+      '<td class="num-col">' + fmtDec(r.galones) + '</td>' +
+      '<td class="num-col">' + fmtDec(r.rendimiento) + '</td>' +
+      '<td class="num-col">' + fmtDec(r.soles) + '</td>' +
+      '<td class="num-col">' + fmtDec(r.costoKM) + '</td>' +
+      '<td>' + esc(r.ultActualizacion || "—") + '</td>' +
+      '<td>' + esc(r.usuario || "—") + '</td>' +
+      '<td>' + estadoBadge + '</td>';
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SELECCIÓN DE FILA + LÁPIZ
+═══════════════════════════════════════════════════════════ */
+function seleccionarFila(idx, tr) {
+  /* Si ya estaba seleccionada, deseleccionar */
+  if (_filaSelIdx === idx) {
+    _filaSelIdx = -1;
+    tr.classList.remove("fila-sel");
+    ocultarLapiz();
+    return;
+  }
+  /* Quitar selección anterior */
+  document.querySelectorAll("#km-tbody tr.fila-sel").forEach(function(el) {
+    el.classList.remove("fila-sel");
+  });
+  _filaSelIdx = idx;
+  tr.classList.add("fila-sel");
+
+  var r = _datosFiltrados[idx];
+  document.getElementById("km-fila-sel").style.display = "flex";
+  document.getElementById("km-sel-label").textContent = r.placa + " — " + formatearMes(r.mes);
+}
+
+function ocultarLapiz() {
+  document.getElementById("km-fila-sel").style.display = "none";
+  document.getElementById("km-sel-label").textContent = "";
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL EDITAR
+═══════════════════════════════════════════════════════════ */
+function abrirModalEditar() {
+  if (_filaSelIdx < 0) return;
+  var r = _datosFiltrados[_filaSelIdx];
+
+  document.getElementById("editMes").textContent   = formatearMes(r.mes);
+  document.getElementById("editPlaca").textContent = r.placa;
+  document.getElementById("editGalones").value     = r.galones || "";
+  document.getElementById("editSoles").value       = r.soles   || "";
+  document.getElementById("editMsg").style.display = "none";
+
+  var ultReg = document.getElementById("editUltReg");
+  if (r.ultActualizacion && r.ultActualizacion !== "—") {
+    ultReg.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Último registro: ' + esc(r.placa) + ' — ' + esc(r.ultActualizacion) + ' — ' + esc(r.usuario);
+    ultReg.style.display = "flex";
+  } else {
+    ultReg.style.display = "none";
+  }
+
+  abrirModal("modal-editar");
+}
+
+function guardarEdicion() {
+  if (_filaSelIdx < 0) return;
+  var r       = _datosFiltrados[_filaSelIdx];
+  var galones = document.getElementById("editGalones").value.trim();
+  var soles   = document.getElementById("editSoles").value.trim();
+
+  if (galones === "" && soles === "") {
+    mostrarMsgModal("editMsg", "Ingresa al menos Galones o Soles.", "error");
+    return;
+  }
+
+  var btnGuardar = document.getElementById("btnGuardar");
+  btnGuardar.disabled = true;
+  btnGuardar.textContent = "Guardando…";
+
+  fetchScript("guardar", {
+    action:  "manual",
+    mes:     r.mes,
+    placa:   r.placa,
+    galones: galones,
+    soles:   soles,
+    usuario: _userName
+  }, function(res) {
+    btnGuardar.disabled = false;
+    btnGuardar.textContent = "Guardar";
+    if (res.success) {
+      mostrarMsgModal("editMsg", "Guardado correctamente.", "ok");
+      setTimeout(function() {
+        cerrarModal("modal-editar");
+        cargarDatosMes(r.mes);
+      }, 800);
+    } else {
+      mostrarMsgModal("editMsg", res.error || "Error al guardar.", "error");
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL CARGA MASIVA
+═══════════════════════════════════════════════════════════ */
+function abrirModalMasivo() {
+  document.getElementById("masivoFile").value = "";
+  document.getElementById("masivoPreview").style.display = "none";
+  document.getElementById("masivoMsg").style.display = "none";
+  document.getElementById("btnCargarMasivo").disabled = true;
+  _masivoFilas = [];
+  abrirModal("modal-masivo");
+}
+
+function validarArchivo() {
+  var file = document.getElementById("masivoFile").files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var wb = new ExcelJS.Workbook();
+    wb.xlsx.load(e.target.result).then(function() {
+      var ws    = wb.worksheets[0];
+      var filas = [];
+      var errores = [];
+
+      ws.eachRow(function(row, ri) {
+        if (ri === 1) return; /* saltar encabezado */
+        var mes    = String(row.getCell(1).value || "").trim();
+        var placa  = String(row.getCell(2).value || "").trim().toUpperCase();
+        var galones = row.getCell(3).value;
+        var soles   = row.getCell(4).value;
+
+        if (!mes || !placa) { errores.push("Fila " + ri + ": Mes o Placa vacíos"); return; }
+        if (galones !== null && galones !== "" && isNaN(parseFloat(galones))) {
+          errores.push("Fila " + ri + ": Galones no es número válido"); return;
+        }
+        if (soles !== null && soles !== "" && isNaN(parseFloat(soles))) {
+          errores.push("Fila " + ri + ": Soles no es número válido"); return;
+        }
+        filas.push({ mes: mes, placa: placa, galones: galones, soles: soles });
+      });
+
+      _masivoFilas = filas;
+      document.getElementById("masivoPreview").style.display = "block";
+      document.getElementById("masivoInfo").textContent = filas.length + " fila(s) válidas encontradas.";
+
+      var errDiv = document.getElementById("masivoErrores");
+      if (errores.length > 0) {
+        errDiv.style.display = "block";
+        errDiv.innerHTML = "<strong>Advertencias:</strong><br>" + errores.map(esc).join("<br>");
+      } else {
+        errDiv.style.display = "none";
+      }
+
+      document.getElementById("btnCargarMasivo").disabled = filas.length === 0;
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function ejecutarCargaMasiva() {
+  if (_masivoFilas.length === 0) return;
+  var btn = document.getElementById("btnCargarMasivo");
+  btn.disabled = true;
+  btn.textContent = "Cargando…";
+
+  fetchScript("masivo", {
+    action:  "masivo",
+    filas:   _masivoFilas,
+    usuario: _userName
+  }, function(res) {
+    btn.disabled = false;
+    btn.textContent = "Cargar";
+    if (res.success !== undefined || res.exitosas !== undefined) {
+      var txt = "Exitosas: " + (res.exitosas || 0);
+      if (res.rechazadas && res.rechazadas.length > 0) {
+        txt += " | Rechazadas: " + res.rechazadas.length;
+      }
+      mostrarMsgModal("masivoMsg", txt, res.rechazadas && res.rechazadas.length > 0 ? "warn" : "ok");
+      setTimeout(function() {
+        cerrarModal("modal-masivo");
+        var mes = document.getElementById("selMes").value;
+        cargarDatosMes(mes);
+      }, 1200);
+    } else {
+      mostrarMsgModal("masivoMsg", res.error || "Error en carga.", "error");
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DESCARGAR PLANTILLA
+═══════════════════════════════════════════════════════════ */
+function descargarPlantilla() {
+  var mes = document.getElementById("selMes").value;
+  var wb  = new ExcelJS.Workbook();
+  var ws  = wb.addWorksheet("Carga");
+
+  ws.columns = [
+    { header: "Mes",     key: "mes",     width: 12 },
+    { header: "Placa",   key: "placa",   width: 14 },
+    { header: "Galones", key: "galones", width: 12 },
+    { header: "Soles",   key: "soles",   width: 12 }
+  ];
+
+  /* Estilo encabezado */
+  var hRow = ws.getRow(1);
+  hRow.eachCell(function(cell) {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185FA5" } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+  });
+  hRow.height = 20;
+
+  /* Fila ejemplo con mes pre-llenado */
+  var eRow = ws.addRow([mes, "", "", ""]);
+  eRow.getCell(1).font = { color: { argb: "FF185FA5" }, italic: true };
+
+  ws.getRow(1).commit();
+
+  wb.xlsx.writeBuffer().then(function(buf) {
+    var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href   = url;
+    a.download = "Plantilla_ControlKM_" + mes.replace("-","") + ".xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORTAR XLS
+═══════════════════════════════════════════════════════════ */
+function exportarXLS() {
+  if (_datosFiltrados.length === 0) return;
+  var mes = document.getElementById("selMes").value;
+  var wb  = new ExcelJS.Workbook();
+  var ws  = wb.addWorksheet("Control KM", { views: [{ state: "frozen", ySplit: 1 }] });
+
+  ws.columns = [
+    { header: "#",               width: 5  },
+    { header: "Placa",           width: 12 },
+    { header: "Tipo",            width: 10 },
+    { header: "Marca",           width: 14 },
+    { header: "Modelo",          width: 14 },
+    { header: "Odo Inicial",     width: 13 },
+    { header: "F. Inicial",      width: 16 },
+    { header: "Odo Final",       width: 13 },
+    { header: "F. Final",        width: 16 },
+    { header: "Total KM",        width: 11 },
+    { header: "Galones",         width: 10 },
+    { header: "Rendimiento",     width: 13 },
+    { header: "Soles",           width: 10 },
+    { header: "Costo KM",        width: 11 },
+    { header: "Últ. Actualiz.",  width: 18 },
+    { header: "Usuario",         width: 18 },
+    { header: "Estado",          width: 14 }
+  ];
+
+  var hRow = ws.getRow(1);
+  hRow.eachCell(function(cell) {
+    cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185FA5" } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border    = {
+      top: { style: "thin", color: { argb: "FF0C447C" } },
+      bottom: { style: "thin", color: { argb: "FF0C447C" } },
+      left: { style: "thin", color: { argb: "FF0C447C" } },
+      right: { style: "thin", color: { argb: "FF0C447C" } }
+    };
+  });
+  hRow.height = 20;
+
+  _datosFiltrados.forEach(function(r, i) {
+    var row = ws.addRow([
+      i+1, r.placa, r.tipo, r.marca, r.modelo,
+      r.odoInicial, r.fechaOdoInicial,
+      r.odoFinal,   r.fechaOdoFinal,
+      r.totalKM, r.galones, r.rendimiento, r.soles, r.costoKM,
+      r.ultActualizacion, r.usuario, r.estado
+    ]);
+    var isAlt = i % 2 === 0;
+    row.eachCell(function(cell) {
+      cell.font      = { size: 10 };
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: isAlt ? "FFEDF3FB" : "FFFFFFFF" } };
+      cell.border    = {
+        top: { style: "hair", color: { argb: "FFDEE2E6" } },
+        bottom: { style: "hair", color: { argb: "FFDEE2E6" } },
+        left: { style: "hair", color: { argb: "FFDEE2E6" } },
+        right: { style: "hair", color: { argb: "FFDEE2E6" } }
+      };
+      cell.alignment = { vertical: "middle" };
+    });
+    row.height = 15;
+  });
+
+  wb.xlsx.writeBuffer().then(function(buf) {
+    var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement("a");
+    a.href   = url;
+    a.download = "ControlKM_" + mes.replace("-","") + ".xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SIDEBAR STATS
+═══════════════════════════════════════════════════════════ */
+function actualizarSidebarStats() {
+  var d = _datosFiltrados;
+  if (d.length === 0) { document.getElementById("sb-stats").style.display = "none"; return; }
+
+  document.getElementById("sb-stats").style.display = "block";
+  document.getElementById("sbTotal").textContent = d.length;
+  document.getElementById("sbActualizadas").textContent = d.filter(function(r) { return r.estado === "ACTUALIZADO"; }).length;
+  document.getElementById("sbPendientes").textContent   = d.filter(function(r) { return r.estado === "PENDIENTE" || r.estado === "PARCIAL"; }).length;
+
+  var kmTotal = d.reduce(function(s, r) { return s + (parseFloat(r.totalKM) || 0); }, 0);
+  document.getElementById("sbKM").textContent = kmTotal > 0 ? Math.round(kmTotal).toLocaleString() : "—";
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA RESUMEN
+═══════════════════════════════════════════════════════════ */
+function renderResumen() {
+  var d = _datosFiltrados.filter(function(r) { return parseFloat(r.galones) > 0; });
+
+  if (d.length === 0) {
+    document.getElementById("res-stats").style.display  = "none";
+    document.getElementById("res-charts").style.display = "none";
+    document.getElementById("res-empty").style.display  = "block";
+    return;
+  }
+  document.getElementById("res-empty").style.display  = "none";
+  document.getElementById("res-stats").style.display  = "grid";
+  document.getElementById("res-charts").style.display = "grid";
+
+  /* Stats */
+  var kmTotal  = d.reduce(function(s,r){ return s+(parseFloat(r.totalKM)||0); }, 0);
+  var galTotal = d.reduce(function(s,r){ return s+(parseFloat(r.galones)||0); }, 0);
+  var rendArr  = d.filter(function(r){ return parseFloat(r.rendimiento)>0; }).map(function(r){ return parseFloat(r.rendimiento); });
+  var costoArr = d.filter(function(r){ return parseFloat(r.costoKM)>0; }).map(function(r){ return parseFloat(r.costoKM); });
+  var rendProm = rendArr.length  ? rendArr.reduce(function(a,b){return a+b;},0)/rendArr.length   : 0;
+  var costoProm= costoArr.length ? costoArr.reduce(function(a,b){return a+b;},0)/costoArr.length : 0;
+
+  document.getElementById("resKMTotal").textContent = Math.round(kmTotal).toLocaleString();
+  document.getElementById("resGalTotal").textContent = Math.round(galTotal).toLocaleString();
+  document.getElementById("resRend").textContent    = rendProm  ? rendProm.toFixed(2)  : "—";
+  document.getElementById("resCosto").textContent   = costoProm ? "S/ " + costoProm.toFixed(2) : "—";
+
+  renderGalones();
+  renderRendimiento();
+  renderCosto();
+  renderRanking();
+}
+
+/* ── HELPERS DE AGRUPACIÓN ── */
+function agruparPor(campo, metrica) {
+  var grupos = {};
+  _datosFiltrados.forEach(function(r) {
+    var key = r[campo] || "Sin dato";
+    var val = parseFloat(r[metrica]) || 0;
+    if (!grupos[key]) grupos[key] = 0;
+    grupos[key] += val;
+  });
+  return grupos;
+}
+
+function agruparRendPor(campo) {
+  var grupos = {};
+  _datosFiltrados.forEach(function(r) {
+    var key  = r[campo] || "Sin dato";
+    var rend = parseFloat(r.rendimiento) || 0;
+    if (rend <= 0) return;
+    if (!grupos[key]) grupos[key] = { sum: 0, cnt: 0 };
+    grupos[key].sum += rend;
+    grupos[key].cnt++;
+  });
+  var res = {};
+  Object.keys(grupos).forEach(function(k) {
+    res[k] = grupos[k].sum / grupos[k].cnt;
+  });
+  return res;
+}
+
+function agruparCostoPor(campo) {
+  var grupos = {};
+  _datosFiltrados.forEach(function(r) {
+    var key   = r[campo] || "Sin dato";
+    var costo = parseFloat(r.costoKM) || 0;
+    if (costo <= 0) return;
+    if (!grupos[key]) grupos[key] = { sum: 0, cnt: 0 };
+    grupos[key].sum += costo;
+    grupos[key].cnt++;
+  });
+  var res = {};
+  Object.keys(grupos).forEach(function(k) {
+    res[k] = grupos[k].sum / grupos[k].cnt;
+  });
+  return res;
+}
+
+/* ── GRÁFICO DONA ── */
+function renderGalones() {
+  var campo  = document.getElementById("filtGalones").value;
+  var grupos = agruparPor(campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo", "galones");
+  var keys   = Object.keys(grupos).sort(function(a,b){ return grupos[b]-grupos[a]; });
+  var total  = keys.reduce(function(s,k){ return s+grupos[k]; }, 0);
+
+  var COLORS = ["#185fa5","#1D9E75","#BA7517","#A32D2D","#534AB7","#6c757d"];
+  var svg = '<circle cx="18" cy="18" r="14" fill="none" stroke="var(--border-color)" stroke-width="5"/>';
+  var offset = 22; /* rotación inicial */
+  var total_circ = 88; /* 2*π*14 ≈ 87.96 */
+
+  keys.forEach(function(k, i) {
+    var pct  = total > 0 ? grupos[k] / total : 0;
+    var dash = pct * total_circ;
+    svg += '<circle cx="18" cy="18" r="14" fill="none" stroke="' + COLORS[i % COLORS.length] + '" stroke-width="5" stroke-dasharray="' + dash.toFixed(2) + ' ' + total_circ + '" stroke-dashoffset="' + (-offset) + '" stroke-linecap="round"/>';
+    offset += dash;
+  });
+
+  document.getElementById("donutSvg").innerHTML = svg;
+
+  var leg = "";
+  keys.slice(0,6).forEach(function(k,i) {
+    var pct = total > 0 ? ((grupos[k]/total)*100).toFixed(0) : 0;
+    leg += '<div class="leg-row"><div class="leg-dot" style="background:' + COLORS[i%COLORS.length] + '"></div><span class="leg-lbl">' + esc(k) + '</span><span class="leg-val">' + Math.round(grupos[k]).toLocaleString() + ' (' + pct + '%)</span></div>';
+  });
+  document.getElementById("donutLegend").innerHTML = leg;
+}
+
+/* ── BARRAS HORIZONTALES ── */
+function renderBarras(containerId, grupos, fmtFn, color) {
+  var keys   = Object.keys(grupos).sort(function(a,b){ return grupos[b]-grupos[a]; });
+  var maxVal = keys.length ? grupos[keys[0]] : 1;
+  var html   = "";
+  keys.forEach(function(k) {
+    var val = grupos[k];
+    var pct = (val / maxVal * 100).toFixed(1);
+    html +=
+      '<div class="bar-row">' +
+        '<span class="bar-label" title="' + esc(k) + '">' + esc(k) + '</span>' +
+        '<div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '">' +
+          '<span class="bar-val">' + fmtFn(val) + '</span>' +
+        '</div></div>' +
+        '<span class="bar-num">' + fmtFn(val) + '</span>' +
+      '</div>';
+  });
+  document.getElementById(containerId).innerHTML = html || '<div class="empty-msg">Sin datos.</div>';
+}
+
+function renderRendimiento() {
+  var campo  = document.getElementById("filtRend").value;
+  var key    = campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
+  var grupos = agruparRendPor(key);
+  renderBarras("barRendimiento", grupos, function(v){ return v.toFixed(2); }, "#185fa5");
+  /* promedio global */
+  var arr = Object.values(grupos);
+  var avg = arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : 0;
+  document.getElementById("avgRend").textContent = avg ? "Promedio flota: " + avg.toFixed(2) + " km/gal" : "";
+}
+
+function renderCosto() {
+  var campo  = document.getElementById("filtCosto").value;
+  var key    = campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
+  var grupos = agruparCostoPor(key);
+  renderBarras("barCosto", grupos, function(v){ return "S/ " + v.toFixed(2); }, "#1D9E75");
+}
+
+/* ── RANKING ── */
+function renderRanking() {
+  var campo  = document.getElementById("filtRanking").value;
+  var key    = campo === "unidad" ? "placa" : campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
+  var grupos = agruparRendPor(key);
+  var sorted = Object.keys(grupos).sort(function(a,b){ return grupos[b]-grupos[a]; });
+
+  function filaRank(k, i, total) {
+    var val  = grupos[k];
+    var isTop = i < 3;
+    return '<tr>' +
+      '<td class="rank-num">' + (i+1) + '</td>' +
+      '<td><strong>' + esc(k) + '</strong></td>' +
+      '<td><strong>' + val.toFixed(2) + '</strong></td>' +
+      '<td><span class="badge-trend ' + (isTop ? 'trend-up' : 'trend-dn') + '">' + (isTop ? '↑' : '↓') + '</span></td>' +
+    '</tr>';
+  }
+
+  var top3 = sorted.slice(0, 3);
+  var bot3 = sorted.slice(-3).reverse();
+
+  var topHTML = '<thead><tr><th>#</th><th>' + campo.charAt(0).toUpperCase()+campo.slice(1) + '</th><th>km/gal</th><th></th></tr></thead><tbody>';
+  top3.forEach(function(k,i){ topHTML += filaRank(k,i,top3.length); });
+  topHTML += '</tbody>';
+  document.getElementById("rankTop").innerHTML = topHTML;
+
+  var botHTML = '<thead><tr><th>#</th><th>' + campo.charAt(0).toUpperCase()+campo.slice(1) + '</th><th>km/gal</th><th></th></tr></thead><tbody>';
+  bot3.forEach(function(k,i){ botHTML += filaRank(k, sorted.length - bot3.length + i, bot3.length); });
+  botHTML += '</tbody>';
+  document.getElementById("rankBot").innerHTML = botHTML;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOGGLE VISTA
+═══════════════════════════════════════════════════════════ */
+function switchVista(vista, btn) {
+  _vistaActual = vista;
+  document.querySelectorAll(".vista").forEach(function(el){ el.classList.remove("active"); });
+  document.querySelectorAll(".toggle-btn").forEach(function(el){ el.classList.remove("active"); });
+  document.getElementById("vista-" + vista).classList.add("active");
+  btn.classList.add("active");
+
+  if (vista === "resumen" && _datosFiltrados.length > 0) renderResumen();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMUNICACIÓN CON APPS SCRIPT (JSONP — igual que addin seguimiento)
+   GET  → leer datos / meses
+   POST → guardar manual / masivo (via JSONP con body en query param)
+═══════════════════════════════════════════════════════════ */
+function fetchScript(action, params, callback) {
+  var cbName = "km_cb_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+
+  /* Registrar callback global temporal */
+  window[cbName] = function(data) {
+    try { delete window[cbName]; } catch(e) {}
+    callback(data);
+  };
+
+  var tag = document.createElement("script");
+
+  if (action === "meses") {
+    tag.src = URL_SCRIPT + "?action=meses&callback=" + cbName + "&nocache=" + Date.now();
+
+  } else if (action === "leer") {
+    tag.src = URL_SCRIPT + "?action=leer&mes=" + encodeURIComponent(params.mes) +
+              "&callback=" + cbName + "&nocache=" + Date.now();
+
+  } else {
+    /* guardar / masivo — se envía el payload como JSON en query string */
+    var body = encodeURIComponent(JSON.stringify(params));
+    tag.src = URL_SCRIPT + "?action=" + encodeURIComponent(action) +
+              "&body=" + body +
+              "&callback=" + cbName + "&nocache=" + Date.now();
+  }
+
+  tag.onerror = function() {
+    try { tag.remove(); } catch(e) {}
+    callback({ success: false, error: "Error de red al conectar con el servidor." });
+  };
+
+  tag.onload = function() {
+    try { tag.remove(); } catch(e) {}
+  };
+
+  document.body.appendChild(tag);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS MODALES
+═══════════════════════════════════════════════════════════ */
+function abrirModal(id) { document.getElementById(id).style.display = "flex"; }
+function cerrarModal(id) { document.getElementById(id).style.display = "none"; }
+function cerrarModalSiOverlay(e, id) {
+  if (e.target === document.getElementById(id)) cerrarModal(id);
+}
+function mostrarMsgModal(id, txt, tipo) {
+  var el = document.getElementById(id);
+  el.textContent = txt;
+  el.className   = "edit-msg edit-msg-" + tipo;
+  el.style.display = "block";
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS UI
+═══════════════════════════════════════════════════════════ */
+function setLoading(on) {
+  document.getElementById("km-loading").style.display = on ? "flex" : "none";
+}
+function mostrarError(txt) {
+  document.getElementById("km-tbody").innerHTML = '<tr><td colspan="17" class="empty-msg" style="color:#a32d2d">' + esc(txt) + '</td></tr>';
+}
+function formatearMes(m) {
+  if (!m) return "—";
+  var meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  var parts = m.split("-");
+  if (parts.length < 2) return m;
+  return meses[parseInt(parts[1],10)-1] + " " + parts[0];
+}
+function fmtNum(v) {
+  var n = parseFloat(v);
+  return isNaN(n) || v === "" ? "—" : Math.round(n).toLocaleString();
+}
+function fmtDec(v) {
+  var n = parseFloat(v);
+  return isNaN(n) || v === "" ? "—" : n.toFixed(2);
+}
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
