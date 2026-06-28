@@ -355,9 +355,21 @@ var _masivoFilas  = [];      /* filas parseadas del excel masivo */
 /* ═══════════════════════════════════════════════════════════
    INIT MyGeotab
 ═══════════════════════════════════════════════════════════ */
-geotab.addin.controlKM = function(api, state) {
+geotab.addin["prueba_hugo-CONTROLKM"] = function(api, state) {
   _api = api;
-  state.getSession(function(s) { _userName = s.userName || "sistema"; });
+  /* Obtener usuario — compatible con distintas versiones de MyGeotab */
+  try {
+    if (typeof state.getSession === "function") {
+      state.getSession(function(s) { _userName = s.userName || "sistema"; });
+    } else if (typeof api.getSession === "function") {
+      api.getSession(function(s) { _userName = s.userName || "sistema"; });
+    } else {
+      /* Fallback: leer desde la sesión activa */
+      api.call("Get", { typeName: "User", search: { name: "" } }, function(users) {
+        if (users && users.length > 0) _userName = users[0].name || "sistema";
+      }, function() { _userName = "sistema"; });
+    }
+  } catch(e) { _userName = "sistema"; }
   initialize();
 };
 
