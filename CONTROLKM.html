@@ -43,11 +43,7 @@
     </div>
     <div class="fg">
       <label>Tipo</label>
-      <select id="selTipo">
-        <option value="">Todos</option>
-        <option value="LOCAL">Local</option>
-        <option value="PROVINCIA">Provincia</option>
-      </select>
+      <select id="selTipo"><option value="">Todos</option></select>
     </div>
     <div class="fg">
       <label>Marca</label>
@@ -153,14 +149,14 @@
                 <th style="width:100px">F. Inicial</th>
                 <th style="width:90px">Odo Final</th>
                 <th style="width:100px">F. Final</th>
-                <th style="width:74px">Total KM</th>
-                <th style="width:68px">Galones</th>
+                <th style="width:80px">Total KM</th>
+                <th style="width:72px">Galones</th>
                 <th style="width:64px">Rend.</th>
-                <th style="width:72px">Soles</th>
-                <th style="width:72px">Costo KM</th>
+                <th style="width:90px">Soles</th>
+                <th style="width:90px">Costo KM</th>
                 <th style="width:130px">Últ. Actualiz.</th>
-                <th style="width:110px">Usuario</th>
                 <th style="width:100px">Estado</th>
+                <th style="width:110px">Usuario</th>
               </tr>
             </thead>
             <tbody id="km-tbody">
@@ -430,9 +426,14 @@ function cargarDatosMes(mes) {
    POBLAR FILTROS MARCA / MODELO / PLACA
 ═══════════════════════════════════════════════════════════ */
 function poblarFiltrosMarcaModelo() {
+  var tipos    = [...new Set(_datos.map(function(r) { return r.tipo; }).filter(Boolean))].sort();
   var marcas   = [...new Set(_datos.map(function(r) { return r.marca; }).filter(Boolean))].sort();
   var modelos  = [...new Set(_datos.map(function(r) { return r.modelo; }).filter(Boolean))].sort();
   var placas   = _datos.map(function(r) { return r.placa; }).sort();
+
+  var selT = document.getElementById("selTipo");
+  selT.innerHTML = '<option value="">Todos</option>';
+  tipos.forEach(function(t) { selT.innerHTML += '<option value="' + esc(t) + '">' + esc(t) + '</option>'; });
 
   var selM = document.getElementById("selMarca");
   selM.innerHTML = '<option value="">Todas</option>';
@@ -518,11 +519,11 @@ function renderTabla() {
       '<td class="num-col">' + fmtNum(r.totalKM) + '</td>' +
       '<td class="num-col">' + fmtDec(r.galones) + '</td>' +
       '<td class="num-col">' + fmtDec(r.rendimiento) + '</td>' +
-      '<td class="num-col">' + fmtDec(r.soles) + '</td>' +
-      '<td class="num-col">' + fmtDec(r.costoKM) + '</td>' +
+      '<td class="num-col">' + fmtDec(r.soles, "S/") + '</td>' +
+      '<td class="num-col">' + fmtDec(r.costoKM, "S/") + '</td>' +
       '<td>' + esc(r.ultActualizacion || "—") + '</td>' +
-      '<td>' + esc(r.usuario || "—") + '</td>' +
-      '<td>' + estadoBadge + '</td>';
+      '<td>' + estadoBadge + '</td>' +
+      '<td>' + esc(r.usuario || "—") + '</td>';
 
     tbody.appendChild(tr);
   });
@@ -764,18 +765,18 @@ function exportarXLS() {
     { header: "Tipo",            width: 10 },
     { header: "Marca",           width: 14 },
     { header: "Modelo",          width: 14 },
-    { header: "Odo Inicial",     width: 13 },
+    { header: "Odo Inicial",     width: 14, style: { numFmt: "#,##0" } },
     { header: "F. Inicial",      width: 16 },
-    { header: "Odo Final",       width: 13 },
+    { header: "Odo Final",       width: 14, style: { numFmt: "#,##0" } },
     { header: "F. Final",        width: 16 },
-    { header: "Total KM",        width: 11 },
-    { header: "Galones",         width: 10 },
-    { header: "Rendimiento",     width: 13 },
-    { header: "Soles",           width: 10 },
-    { header: "Costo KM",        width: 11 },
+    { header: "Total KM",        width: 12, style: { numFmt: "#,##0" } },
+    { header: "Galones",         width: 11, style: { numFmt: "#,##0.00" } },
+    { header: "Rendimiento",     width: 13, style: { numFmt: "#,##0.00" } },
+    { header: "Soles",           width: 14, style: { numFmt: '"S/ "#,##0.00' } },
+    { header: "Costo KM",        width: 12, style: { numFmt: '"S/ "#,##0.00' } },
     { header: "Últ. Actualiz.",  width: 18 },
-    { header: "Usuario",         width: 18 },
-    { header: "Estado",          width: 14 }
+    { header: "Estado",          width: 14 },
+    { header: "Usuario",         width: 18 }
   ];
 
   var hRow = ws.getRow(1);
@@ -795,11 +796,19 @@ function exportarXLS() {
   _datosFiltrados.forEach(function(r, i) {
     var row = ws.addRow([
       i+1, r.placa, r.tipo, r.marca, r.modelo,
-      r.odoInicial, r.fechaOdoInicial,
-      r.odoFinal,   r.fechaOdoFinal,
-      r.totalKM, r.galones, r.rendimiento, r.soles, r.costoKM,
-      r.ultActualizacion, r.usuario, r.estado
+      parseFloat(r.odoInicial) || "", r.fechaOdoInicial,
+      parseFloat(r.odoFinal)   || "", r.fechaOdoFinal,
+      parseFloat(r.totalKM)    || "",
+      parseFloat(r.galones)    || "",
+      parseFloat(r.rendimiento)|| "",
+      parseFloat(r.soles)      || "",
+      parseFloat(r.costoKM)    || "",
+      r.ultActualizacion, r.estado, r.usuario
     ]);
+    /* Aplicar numFmt por celda para garantizar formato */
+    [6,8,10].forEach(function(col){ row.getCell(col).numFmt = "#,##0"; });
+    [11,12].forEach(function(col){ row.getCell(col).numFmt = "#,##0.00"; });
+    [13,14].forEach(function(col){ row.getCell(col).numFmt = '"S/ "#,##0.00'; });
     var isAlt = i % 2 === 0;
     row.eachCell(function(cell) {
       cell.font      = { size: 10 };
@@ -1113,11 +1122,14 @@ function formatearMes(m) {
 }
 function fmtNum(v) {
   var n = parseFloat(v);
-  return isNaN(n) || v === "" ? "—" : Math.round(n).toLocaleString();
+  if (isNaN(n) || v === "" || v === null) return "—";
+  return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
-function fmtDec(v) {
+function fmtDec(v, prefix) {
   var n = parseFloat(v);
-  return isNaN(n) || v === "" ? "—" : n.toFixed(2);
+  if (isNaN(n) || v === "" || v === null) return "—";
+  var str = n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return prefix ? prefix + " " + str : str;
 }
 function esc(s) {
   return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
