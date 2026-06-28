@@ -683,28 +683,50 @@ function ejecutarCargaMasiva() {
   btn.disabled = true;
   btn.textContent = "Cargando…";
 
-  fetchScript("masivo", {
-    action:  "masivo",
-    filas:   _masivoFilas,
-    usuario: _userName
-  }, function(res) {
-    btn.disabled = false;
-    btn.textContent = "Cargar";
-    if (res.success !== undefined || res.exitosas !== undefined) {
-      var txt = "Exitosas: " + (res.exitosas || 0);
-      if (res.rechazadas && res.rechazadas.length > 0) {
-        txt += " | Rechazadas: " + res.rechazadas.length;
-      }
-      mostrarMsgModal("masivoMsg", txt, res.rechazadas && res.rechazadas.length > 0 ? "warn" : "ok");
+  /* Dividir en lotes de 10 filas para no superar el límite de URL */
+  var LOTE = 10;
+  var lotes = [];
+  for (var i = 0; i < _masivoFilas.length; i += LOTE) {
+    lotes.push(_masivoFilas.slice(i, i + LOTE));
+  }
+
+  var totalExitosas  = 0;
+  var totalRechazadas = [];
+  var loteIdx = 0;
+
+  function procesarLote() {
+    if (loteIdx >= lotes.length) {
+      /* Todos los lotes terminados */
+      btn.disabled = false;
+      btn.textContent = "Cargar";
+      var txt = "Exitosas: " + totalExitosas;
+      if (totalRechazadas.length > 0) txt += " | Rechazadas: " + totalRechazadas.length;
+      mostrarMsgModal("masivoMsg", txt, totalRechazadas.length > 0 ? "warn" : "ok");
       setTimeout(function() {
         cerrarModal("modal-masivo");
-        var mes = document.getElementById("selMes").value;
-        cargarDatosMes(mes);
+        cargarDatosMes(document.getElementById("selMes").value);
       }, 1200);
-    } else {
-      mostrarMsgModal("masivoMsg", res.error || "Error en carga.", "error");
+      return;
     }
-  });
+
+    btn.textContent = "Cargando lote " + (loteIdx + 1) + "/" + lotes.length + "…";
+
+    fetchScript("masivo", {
+      action:  "masivo",
+      filas:   lotes[loteIdx],
+      usuario: _userName
+    }, function(res) {
+      if (res.exitosas !== undefined) {
+        totalExitosas += res.exitosas || 0;
+        if (res.rechazadas) totalRechazadas = totalRechazadas.concat(res.rechazadas);
+      }
+      loteIdx++;
+      /* Pequeña pausa entre lotes para no saturar */
+      setTimeout(procesarLote, 500);
+    });
+  }
+
+  procesarLote();
 }
 
 /* ═══════════════════════════════════════════════════════════
