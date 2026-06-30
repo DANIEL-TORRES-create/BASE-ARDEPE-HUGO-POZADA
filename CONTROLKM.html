@@ -94,6 +94,14 @@
         <span class="sb-stat-lbl">KM acumulados</span>
         <span class="sb-stat-val" id="sbKM">—</span>
       </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-lbl">Total galones</span>
+        <span class="sb-stat-val" id="sbGalones">—</span>
+      </div>
+      <div class="sb-stat-row">
+        <span class="sb-stat-lbl">Total soles</span>
+        <span class="sb-stat-val" id="sbSoles">—</span>
+      </div>
     </div>
   </aside>
 
@@ -980,7 +988,13 @@ function actualizarSidebarStats() {
   document.getElementById("sbPendientes").textContent   = d.filter(function(r) { return r.estado === "PENDIENTE" || r.estado === "PARCIAL"; }).length;
 
   var kmTotal = d.reduce(function(s, r) { return s + (parseFloat(r.totalKM) || 0); }, 0);
-  document.getElementById("sbKM").textContent = kmTotal > 0 ? Math.round(kmTotal).toLocaleString() : "—";
+  document.getElementById("sbKM").textContent = kmTotal > 0 ? Math.round(kmTotal).toLocaleString("en-US") : "—";
+
+  var galTotal = d.reduce(function(s, r) { return s + (parseFloat(r.galones) || 0); }, 0);
+  document.getElementById("sbGalones").textContent = galTotal > 0 ? Math.round(galTotal).toLocaleString("en-US") : "—";
+
+  var solesTotal = d.reduce(function(s, r) { return s + (parseFloat(r.soles) || 0); }, 0);
+  document.getElementById("sbSoles").textContent = solesTotal > 0 ? "S/ " + solesTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1008,8 +1022,8 @@ function renderResumen() {
   var rendProm  = rendArr.length  ? rendArr.reduce(function(a,b){return a+b;},0)/rendArr.length   : 0;
   var costoProm = costoArr.length ? costoArr.reduce(function(a,b){return a+b;},0)/costoArr.length : 0;
 
-  document.getElementById("resKMTotal").textContent  = Math.round(kmTotal).toLocaleString();
-  document.getElementById("resGalTotal").textContent = Math.round(galTotal).toLocaleString();
+  document.getElementById("resKMTotal").textContent  = Math.round(kmTotal).toLocaleString("en-US");
+  document.getElementById("resGalTotal").textContent = Math.round(galTotal).toLocaleString("en-US");
   document.getElementById("resRend").textContent     = rendProm  ? rendProm.toFixed(2)  : "—";
   document.getElementById("resCosto").textContent    = costoProm ? "S/ " + costoProm.toFixed(2) : "—";
   document.getElementById("resSolesTotal").textContent = "S/ " + solesTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1091,7 +1105,7 @@ function renderGalones() {
   var leg = "";
   keys.slice(0,6).forEach(function(k,i) {
     var pct = total > 0 ? ((grupos[k]/total)*100).toFixed(0) : 0;
-    leg += '<div class="leg-row"><div class="leg-dot" style="background:' + COLORS[i%COLORS.length] + '"></div><span class="leg-lbl">' + esc(k) + '</span><span class="leg-val">' + Math.round(grupos[k]).toLocaleString() + ' (' + pct + '%)</span></div>';
+    leg += '<div class="leg-row"><div class="leg-dot" style="background:' + COLORS[i%COLORS.length] + '"></div><span class="leg-lbl">' + esc(k) + '</span><span class="leg-val">' + Math.round(grupos[k]).toLocaleString("en-US") + ' (' + pct + '%)</span></div>';
   });
   document.getElementById("donutLegend").innerHTML = leg;
 }
@@ -1138,9 +1152,9 @@ function renderGastado() {
   var campo  = document.getElementById("filtGastado").value;
   var key    = campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
   var grupos = agruparPor(key, "soles");
-  renderBarras("barGastado", grupos, function(v){ return "S/ " + Math.round(v).toLocaleString(); }, "#A32D2D");
+  renderBarras("barGastado", grupos, function(v){ return "S/ " + Math.round(v).toLocaleString("en-US"); }, "#A32D2D");
   var total = Object.values(grupos).reduce(function(a,b){return a+b;},0);
-  document.getElementById("avgGastado").textContent = total ? "Total: S/ " + Math.round(total).toLocaleString() : "";
+  document.getElementById("avgGastado").textContent = total ? "Total: S/ " + Math.round(total).toLocaleString("en-US") : "";
 }
 
 /* ── RANKING ── */
