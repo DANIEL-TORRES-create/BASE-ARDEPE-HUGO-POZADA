@@ -173,8 +173,8 @@ body {
   padding: 3px 0;
 }
 
-.sb-stat-lbl { color: var(--muted); }
-.sb-stat-val { font-weight: 700; font-size: 13px; }
+.sb-stat-lbl { color: #1a1a2e; font-weight: 700; }
+.sb-stat-val { font-weight: 700; font-size: 13px; color: var(--primary); }
 
 /* ── MAIN ── */
 #km-main {
