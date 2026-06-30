@@ -136,7 +136,7 @@
 
       <!-- Tabla -->
       <div class="tbl-wrap">
-        <div class="tbl-scroll">
+        <div class="tbl-scroll-y">
           <table id="km-table">
             <thead>
               <tr>
@@ -149,11 +149,11 @@
                 <th style="width:100px">F. Inicial</th>
                 <th style="width:90px">Odo Final</th>
                 <th style="width:100px">F. Final</th>
-                <th style="width:80px">Total KM</th>
-                <th style="width:72px">Galones</th>
-                <th style="width:64px">Rend.</th>
-                <th style="width:90px">Soles</th>
-                <th style="width:90px">Costo KM</th>
+                <th style="width:80px" class="th-principal">Total KM</th>
+                <th style="width:72px" class="th-principal">Galones</th>
+                <th style="width:64px" class="th-principal">Rend.</th>
+                <th style="width:90px" class="th-principal">Soles</th>
+                <th style="width:90px" class="th-principal">Costo KM</th>
                 <th style="width:130px">Últ. Actualiz.</th>
                 <th style="width:100px">Estado</th>
                 <th style="width:110px">Usuario</th>
@@ -163,6 +163,9 @@
               <tr><td colspan="17" class="empty-msg">Selecciona un mes y aplica los filtros.</td></tr>
             </tbody>
           </table>
+        </div>
+        <div class="tbl-scroll-x" id="tblScrollX">
+          <div class="tbl-scroll-x-inner" id="tblScrollXInner"></div>
         </div>
       </div>
     </div>
@@ -191,6 +194,11 @@
           <div class="stat-val" id="resCosto">—</div>
           <div class="stat-lbl">Costo KM promedio</div>
           <div class="stat-sub" id="resCostoSub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="resSolesTotal">—</div>
+          <div class="stat-lbl">Total soles gastado</div>
+          <div class="stat-sub" id="resSolesSub"></div>
         </div>
       </div>
 
@@ -263,6 +271,20 @@
           </div>
         </div>
 
+        <!-- Total gastado -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Total gastado (S/.)</span>
+            <select class="chart-filter" id="filtGastado" onchange="renderGastado()">
+              <option value="tipo">Por tipo</option>
+              <option value="marca">Por marca</option>
+              <option value="modelo">Por modelo</option>
+            </select>
+          </div>
+          <div id="barGastado"></div>
+          <div class="chart-avg" id="avgGastado"></div>
+        </div>
+
       </div>
 
       <div id="res-empty" class="empty-msg" style="padding:40px;text-align:center">
@@ -309,19 +331,34 @@
 
 <!-- MODAL CARGA MASIVA -->
 <div id="modal-masivo" class="modal-overlay" style="display:none" onclick="cerrarModalSiOverlay(event,'modal-masivo')">
-  <div class="modal-box">
+  <div class="modal-box modal-box-lg">
     <div class="modal-title">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Carga masiva
     </div>
-    <div class="mfg">
-      <label>Selecciona el archivo Excel (.xlsx)</label>
-      <input type="file" id="masivoFile" accept=".xlsx" class="mfi-input" onchange="validarArchivo()"/>
+
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('masivoFile').click()">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div class="dropzone-text">Arrastra el archivo Excel aquí</div>
+      <div class="dropzone-sub">o haz clic para seleccionar (.xlsx)</div>
+      <div class="dropzone-filename" id="dropzoneFilename" style="display:none"></div>
     </div>
+    <input type="file" id="masivoFile" accept=".xlsx" style="display:none" onchange="validarArchivo(this.files[0])"/>
+
     <div id="masivoPreview" style="display:none">
       <div class="masivo-info" id="masivoInfo"></div>
       <div class="masivo-errores" id="masivoErrores" style="display:none"></div>
     </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBarFill" style="width:0%">
+          <span id="progressBarText">0%</span>
+        </div>
+      </div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="cerrarModal('modal-masivo')">Cancelar</button>
       <button class="btn-modal-save" id="btnCargarMasivo" onclick="ejecutarCargaMasiva()" disabled>Cargar</button>
@@ -516,16 +553,49 @@ function renderTabla() {
       '<td>' + esc(r.fechaOdoInicial || "—") + '</td>' +
       '<td class="num-col">' + fmtNum(r.odoFinal) + '</td>' +
       '<td>' + esc(r.fechaOdoFinal || "—") + '</td>' +
-      '<td class="num-col">' + fmtNum(r.totalKM) + '</td>' +
-      '<td class="num-col">' + fmtDec(r.galones) + '</td>' +
-      '<td class="num-col">' + fmtDec(r.rendimiento) + '</td>' +
-      '<td class="num-col">' + fmtDec(r.soles, "S/") + '</td>' +
-      '<td class="num-col">' + fmtDec(r.costoKM, "S/") + '</td>' +
+      '<td class="num-col col-principal">' + fmtNum(r.totalKM) + '</td>' +
+      '<td class="num-col col-principal">' + fmtDec(r.galones) + '</td>' +
+      '<td class="num-col col-principal">' + fmtDec(r.rendimiento) + '</td>' +
+      '<td class="num-col col-principal">' + fmtDec(r.soles, "S/") + '</td>' +
+      '<td class="num-col col-principal">' + fmtDec(r.costoKM, "S/") + '</td>' +
       '<td>' + esc(r.ultActualizacion || "—") + '</td>' +
       '<td>' + estadoBadge + '</td>' +
       '<td>' + esc(r.usuario || "—") + '</td>';
 
     tbody.appendChild(tr);
+  });
+
+  /* Sincronizar scroll horizontal anclado abajo con el cuerpo de la tabla */
+  sincronizarScrollHorizontal();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SINCRONIZAR SCROLL HORIZONTAL (barra anclada abajo del wrap)
+═══════════════════════════════════════════════════════════ */
+function sincronizarScrollHorizontal() {
+  var scrollY      = document.querySelector("#vista-detalle .tbl-scroll-y");
+  var scrollX       = document.getElementById("tblScrollX");
+  var scrollXInner  = document.getElementById("tblScrollXInner");
+  var table         = document.getElementById("km-table");
+  if (!scrollY || !scrollX || !table) return;
+
+  /* Igualar el ancho del "fantasma" interno al ancho real de la tabla */
+  scrollXInner.style.width = table.scrollWidth + "px";
+
+  /* Evitar duplicar listeners */
+  if (scrollY.dataset.synced === "1") return;
+  scrollY.dataset.synced = "1";
+
+  var syncing = false;
+  scrollY.addEventListener("scroll", function() {
+    if (syncing) { syncing = false; return; }
+    syncing = true;
+    scrollX.scrollLeft = scrollY.scrollLeft;
+  });
+  scrollX.addEventListener("scroll", function() {
+    if (syncing) { syncing = false; return; }
+    syncing = true;
+    scrollY.scrollLeft = scrollX.scrollLeft;
   });
 }
 
@@ -625,14 +695,40 @@ function abrirModalMasivo() {
   document.getElementById("masivoFile").value = "";
   document.getElementById("masivoPreview").style.display = "none";
   document.getElementById("masivoMsg").style.display = "none";
+  document.getElementById("progressWrap").style.display = "none";
+  document.getElementById("dropzoneFilename").style.display = "none";
+  document.getElementById("dropzone").classList.remove("drag-over");
   document.getElementById("btnCargarMasivo").disabled = true;
   _masivoFilas = [];
   abrirModal("modal-masivo");
+  inicializarDropzone();
 }
 
-function validarArchivo() {
-  var file = document.getElementById("masivoFile").files[0];
+function inicializarDropzone() {
+  var dz = document.getElementById("dropzone");
+  if (dz.dataset.bound === "1") return;
+  dz.dataset.bound = "1";
+
+  dz.addEventListener("dragover", function(e) {
+    e.preventDefault();
+    dz.classList.add("drag-over");
+  });
+  dz.addEventListener("dragleave", function() {
+    dz.classList.remove("drag-over");
+  });
+  dz.addEventListener("drop", function(e) {
+    e.preventDefault();
+    dz.classList.remove("drag-over");
+    var file = e.dataTransfer.files[0];
+    if (file) validarArchivo(file);
+  });
+}
+
+function validarArchivo(file) {
   if (!file) return;
+
+  document.getElementById("dropzoneFilename").textContent = file.name;
+  document.getElementById("dropzoneFilename").style.display = "inline-block";
 
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -683,6 +779,8 @@ function ejecutarCargaMasiva() {
   btn.disabled = true;
   btn.textContent = "Cargando…";
 
+  document.getElementById("progressWrap").style.display = "flex";
+
   /* Dividir en lotes de 10 filas para no superar el límite de URL */
   var LOTE = 10;
   var lotes = [];
@@ -694,9 +792,19 @@ function ejecutarCargaMasiva() {
   var totalRechazadas = [];
   var loteIdx = 0;
 
+  function actualizarProgreso() {
+    var pct = Math.round((loteIdx / lotes.length) * 100);
+    document.getElementById("progressBarFill").style.width = pct + "%";
+    document.getElementById("progressBarText").textContent = pct + "%";
+    document.getElementById("progressLabel").textContent =
+      loteIdx + " de " + lotes.length + " lotes procesados (" + _masivoFilas.length + " filas en total)";
+  }
+
   function procesarLote() {
     if (loteIdx >= lotes.length) {
       /* Todos los lotes terminados */
+      document.getElementById("progressBarFill").style.width = "100%";
+      document.getElementById("progressBarText").textContent = "100%";
       btn.disabled = false;
       btn.textContent = "Cargar";
       var txt = "Exitosas: " + totalExitosas;
@@ -709,8 +817,6 @@ function ejecutarCargaMasiva() {
       return;
     }
 
-    btn.textContent = "Cargando lote " + (loteIdx + 1) + "/" + lotes.length + "…";
-
     fetchScript("masivo", {
       action:  "masivo",
       filas:   lotes[loteIdx],
@@ -721,11 +827,13 @@ function ejecutarCargaMasiva() {
         if (res.rechazadas) totalRechazadas = totalRechazadas.concat(res.rechazadas);
       }
       loteIdx++;
+      actualizarProgreso();
       /* Pequeña pausa entre lotes para no saturar */
       setTimeout(procesarLote, 500);
     });
   }
 
+  actualizarProgreso();
   procesarLote();
 }
 
@@ -892,22 +1000,25 @@ function renderResumen() {
   document.getElementById("res-charts").style.display = "grid";
 
   /* Stats */
-  var kmTotal  = d.reduce(function(s,r){ return s+(parseFloat(r.totalKM)||0); }, 0);
-  var galTotal = d.reduce(function(s,r){ return s+(parseFloat(r.galones)||0); }, 0);
-  var rendArr  = d.filter(function(r){ return parseFloat(r.rendimiento)>0; }).map(function(r){ return parseFloat(r.rendimiento); });
-  var costoArr = d.filter(function(r){ return parseFloat(r.costoKM)>0; }).map(function(r){ return parseFloat(r.costoKM); });
-  var rendProm = rendArr.length  ? rendArr.reduce(function(a,b){return a+b;},0)/rendArr.length   : 0;
-  var costoProm= costoArr.length ? costoArr.reduce(function(a,b){return a+b;},0)/costoArr.length : 0;
+  var kmTotal   = d.reduce(function(s,r){ return s+(parseFloat(r.totalKM)||0); }, 0);
+  var galTotal  = d.reduce(function(s,r){ return s+(parseFloat(r.galones)||0); }, 0);
+  var solesTotal= d.reduce(function(s,r){ return s+(parseFloat(r.soles)||0); }, 0);
+  var rendArr   = d.filter(function(r){ return parseFloat(r.rendimiento)>0; }).map(function(r){ return parseFloat(r.rendimiento); });
+  var costoArr  = d.filter(function(r){ return parseFloat(r.costoKM)>0; }).map(function(r){ return parseFloat(r.costoKM); });
+  var rendProm  = rendArr.length  ? rendArr.reduce(function(a,b){return a+b;},0)/rendArr.length   : 0;
+  var costoProm = costoArr.length ? costoArr.reduce(function(a,b){return a+b;},0)/costoArr.length : 0;
 
-  document.getElementById("resKMTotal").textContent = Math.round(kmTotal).toLocaleString();
+  document.getElementById("resKMTotal").textContent  = Math.round(kmTotal).toLocaleString();
   document.getElementById("resGalTotal").textContent = Math.round(galTotal).toLocaleString();
-  document.getElementById("resRend").textContent    = rendProm  ? rendProm.toFixed(2)  : "—";
-  document.getElementById("resCosto").textContent   = costoProm ? "S/ " + costoProm.toFixed(2) : "—";
+  document.getElementById("resRend").textContent     = rendProm  ? rendProm.toFixed(2)  : "—";
+  document.getElementById("resCosto").textContent    = costoProm ? "S/ " + costoProm.toFixed(2) : "—";
+  document.getElementById("resSolesTotal").textContent = "S/ " + solesTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   renderGalones();
   renderRendimiento();
   renderCosto();
   renderRanking();
+  renderGastado();
 }
 
 /* ── HELPERS DE AGRUPACIÓN ── */
@@ -1021,6 +1132,15 @@ function renderCosto() {
   var key    = campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
   var grupos = agruparCostoPor(key);
   renderBarras("barCosto", grupos, function(v){ return "S/ " + v.toFixed(2); }, "#1D9E75");
+}
+
+function renderGastado() {
+  var campo  = document.getElementById("filtGastado").value;
+  var key    = campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
+  var grupos = agruparPor(key, "soles");
+  renderBarras("barGastado", grupos, function(v){ return "S/ " + Math.round(v).toLocaleString(); }, "#A32D2D");
+  var total = Object.values(grupos).reduce(function(a,b){return a+b;},0);
+  document.getElementById("avgGastado").textContent = total ? "Total: S/ " + Math.round(total).toLocaleString() : "";
 }
 
 /* ── RANKING ── */
