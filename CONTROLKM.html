@@ -19,6 +19,10 @@
     <span>Control de Kilómetros</span>
   </div>
   <div id="km-header-actions">
+    <button class="btn-activos" onclick="abrirModalActivos()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Gestionar activos
+    </button>
     <div id="km-mes-badge"></div>
     <div class="toggle-bar">
       <button id="btnDetalle" class="toggle-btn active" onclick="switchVista('detalle', this)">Detalle</button>
@@ -210,10 +214,9 @@
         </div>
       </div>
 
-      <!-- Gráficos fila 1 -->
+      <!-- Gráficos -->
       <div class="charts-grid" id="res-charts" style="display:none">
 
-        <!-- Dona galones por agrupación -->
         <div class="chart-card">
           <div class="chart-header">
             <span class="chart-title">Galones abastecidos</span>
@@ -231,7 +234,6 @@
           </div>
         </div>
 
-        <!-- Barras rendimiento -->
         <div class="chart-card">
           <div class="chart-header">
             <span class="chart-title">Rendimiento (km/gal)</span>
@@ -245,7 +247,6 @@
           <div class="chart-avg" id="avgRend"></div>
         </div>
 
-        <!-- Barras costo KM -->
         <div class="chart-card">
           <div class="chart-header">
             <span class="chart-title">Costo por km (S/.)</span>
@@ -258,7 +259,6 @@
           <div id="barCosto"></div>
         </div>
 
-        <!-- Ranking unidades -->
         <div class="chart-card">
           <div class="chart-header">
             <span class="chart-title">Ranking rendimiento</span>
@@ -279,7 +279,6 @@
           </div>
         </div>
 
-        <!-- Total gastado -->
         <div class="chart-card">
           <div class="chart-header">
             <span class="chart-title">Total gastado (S/.)</span>
@@ -303,7 +302,9 @@
   </main>
 </div>
 
-<!-- MODAL EDITAR (carga por unidad) -->
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL EDITAR (carga por unidad) — SIN CAMBIOS
+═══════════════════════════════════════════════════════════ -->
 <div id="modal-editar" class="modal-overlay" style="display:none" onclick="cerrarModalSiOverlay(event,'modal-editar')">
   <div class="modal-box">
     <div class="modal-title">
@@ -337,14 +338,15 @@
   </div>
 </div>
 
-<!-- MODAL CARGA MASIVA -->
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL CARGA MASIVA — SIN CAMBIOS
+═══════════════════════════════════════════════════════════ -->
 <div id="modal-masivo" class="modal-overlay" style="display:none" onclick="cerrarModalSiOverlay(event,'modal-masivo')">
   <div class="modal-box modal-box-lg">
     <div class="modal-title">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Carga masiva
     </div>
-
     <div class="dropzone" id="dropzone" onclick="document.getElementById('masivoFile').click()">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <div class="dropzone-text">Arrastra el archivo Excel aquí</div>
@@ -352,12 +354,10 @@
       <div class="dropzone-filename" id="dropzoneFilename" style="display:none"></div>
     </div>
     <input type="file" id="masivoFile" accept=".xlsx" style="display:none" onchange="validarArchivo(this.files[0])"/>
-
     <div id="masivoPreview" style="display:none">
       <div class="masivo-info" id="masivoInfo"></div>
       <div class="masivo-errores" id="masivoErrores" style="display:none"></div>
     </div>
-
     <div class="progress-wrap" id="progressWrap">
       <div class="progress-bar-bg">
         <div class="progress-bar-fill" id="progressBarFill" style="width:0%">
@@ -366,12 +366,109 @@
       </div>
       <div class="progress-label" id="progressLabel"></div>
     </div>
-
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="cerrarModal('modal-masivo')">Cancelar</button>
       <button class="btn-modal-save" id="btnCargarMasivo" onclick="ejecutarCargaMasiva()" disabled>Cargar</button>
     </div>
     <div id="masivoMsg" class="edit-msg" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL GESTIONAR ACTIVOS — NUEVO
+═══════════════════════════════════════════════════════════ -->
+<div id="modal-activos" class="modal-overlay" style="display:none" onclick="cerrarModalSiOverlay(event,'modal-activos')">
+  <div class="modal-box modal-box-xl">
+    <div class="modal-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Gestionar activos
+      <button class="btn-activos-nuevo" onclick="mostrarFormActivo('nuevo')" style="margin-left:auto">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nuevo activo
+      </button>
+    </div>
+
+    <!-- Formulario agregar/editar -->
+    <div id="activo-form" style="display:none">
+      <div class="activo-form-grid">
+        <div class="mfg">
+          <label>Placa <span id="placaFmtHint" style="font-size:9px;color:var(--primary);font-weight:normal;text-transform:none;letter-spacing:0">(ej: ABC-123)</span></label>
+          <input type="text" id="activoPlaca" placeholder="ABC-123" maxlength="8" class="mfi-input" oninput="formatearPlacaInput(this)"/>
+        </div>
+        <div class="mfg">
+          <label>Marca</label>
+          <input type="text" id="activoMarca" placeholder="Ej: INTERNATIONAL" class="mfi-input"/>
+        </div>
+        <div class="mfg">
+          <label>Modelo</label>
+          <input type="text" id="activoModelo" placeholder="Ej: 9200" class="mfi-input"/>
+        </div>
+        <div class="mfg">
+          <label>Tipo</label>
+          <input type="text" id="activoTipo" placeholder="Ej: LOCAL" class="mfi-input"/>
+        </div>
+        <div class="mfg" style="grid-column:1/-1">
+          <label>Device ID</label>
+          <input type="text" id="activoDeviceId" placeholder="Ej: b4A2" class="mfi-input"/>
+          <div class="activo-hint">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Si no tienes el ID, ingresa <strong>0</strong> por ahora. Sin Device ID no se registrarán datos de odómetro. Consulta a tu Fleet Manager.
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:10px">
+        <button class="btn-modal-cancel" onclick="cancelarFormActivo()">Cancelar</button>
+        <button class="btn-modal-save" id="btnGuardarActivo" onclick="guardarActivo()">Guardar activo</button>
+      </div>
+      <div id="activoMsg" class="edit-msg" style="display:none"></div>
+    </div>
+
+    <!-- Tabla del catálogo -->
+    <div id="activos-loading" style="display:none;padding:20px;text-align:center;color:var(--muted);font-size:12px">
+      <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>
+      Cargando catálogo…
+    </div>
+    <div class="activos-tbl-wrap" id="activosTblWrap">
+      <table class="activos-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Placa</th>
+            <th>Marca</th>
+            <th>Modelo</th>
+            <th>Tipo</th>
+            <th>Device ID</th>
+            <th style="width:80px;text-align:center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="activos-tbody">
+          <tr><td colspan="7" class="empty-msg">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:right;margin-top:8px">
+      <button class="btn-modal-cancel" onclick="cerrarModal('modal-activos')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN ELIMINAR ACTIVO -->
+<div id="modal-confirmar-eliminar" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title" style="color:#a32d2d">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a32d2d" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Eliminar activo
+    </div>
+    <p style="font-size:12px;color:#1a1a2e;margin-bottom:10px">
+      Al eliminar <strong id="eliminarPlacaLabel"></strong>, dejará de contabilizarse en Detalle y Resumen desde el siguiente mes.<br><br>
+      <span style="color:var(--muted)">Los registros históricos existentes no se verán afectados.</span>
+    </p>
+    <p style="font-size:11px;color:#a32d2d;font-weight:600">¿Confirmas la eliminación?</p>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="cerrarModal('modal-confirmar-eliminar')">Cancelar</button>
+      <button class="btn-modal-save" style="background:#a32d2d" id="btnConfirmarEliminar" onclick="confirmarEliminarActivo()">Eliminar</button>
+    </div>
+    <div id="eliminarMsg" class="edit-msg" style="display:none"></div>
   </div>
 </div>
 
@@ -386,26 +483,26 @@ var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyigAI5rMd_7MmNjeq69QY
 ═══════════════════════════════════════════════════════════ */
 var _api          = null;
 var _userName     = "";
-var _datos        = [];      /* filas crudas del script */
-var _catalogo     = {};      /* placa → { marca, modelo, tipo } */
-var _datosFiltrados = [];    /* filas después de filtros */
-var _filaSelIdx   = -1;      /* índice en _datosFiltrados de la fila seleccionada */
+var _datos        = [];
+var _catalogo     = {};
+var _datosFiltrados = [];
+var _filaSelIdx   = -1;
 var _vistaActual  = "detalle";
-var _masivoFilas  = [];      /* filas parseadas del excel masivo */
+var _masivoFilas  = [];
+var _activoEditando = null;  /* placa del activo que se está editando (null = nuevo) */
+var _activoEliminar = null;  /* placa del activo a eliminar */
 
 /* ═══════════════════════════════════════════════════════════
    INIT MyGeotab
 ═══════════════════════════════════════════════════════════ */
 geotab.addin["prueba_hugo-CONTROLKM"] = function(api, state) {
   _api = api;
-  /* Obtener usuario — compatible con distintas versiones de MyGeotab */
   try {
     if (typeof state.getSession === "function") {
       state.getSession(function(s) { _userName = s.userName || "sistema"; });
     } else if (typeof api.getSession === "function") {
       api.getSession(function(s) { _userName = s.userName || "sistema"; });
     } else {
-      /* Fallback: leer desde la sesión activa */
       api.call("Get", { typeName: "User", search: { name: "" } }, function(users) {
         if (users && users.length > 0) _userName = users[0].name || "sistema";
       }, function() { _userName = "sistema"; });
@@ -419,7 +516,7 @@ function initialize() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CARGAR LISTA DE MESES desde el script
+   CARGAR MESES
 ═══════════════════════════════════════════════════════════ */
 function cargarMeses() {
   setLoading(true);
@@ -436,13 +533,12 @@ function cargarMeses() {
       opt.textContent = formatearMes(m);
       sel.appendChild(opt);
     });
-    /* Cargar datos del mes actual por defecto */
     cargarDatosMes(res.data[0]);
   });
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CARGAR DATOS DEL MES desde el script
+   CARGAR DATOS DEL MES
 ═══════════════════════════════════════════════════════════ */
 function cargarDatosMes(mes) {
   setLoading(true);
@@ -450,25 +546,18 @@ function cargarDatosMes(mes) {
     setLoading(false);
     if (!res.success) { mostrarError("Error al cargar datos."); return; }
     _datos = res.data || [];
-
-    /* Construir catálogo desde los datos (marca, modelo, tipo vienen del catalogo en el script) */
     _catalogo = {};
     _datos.forEach(function(r) {
       _catalogo[r.placa] = { marca: r.marca || "", modelo: r.modelo || "", tipo: r.tipo || "" };
     });
-
-    /* Poblar filtros de marca y modelo */
     poblarFiltrosMarcaModelo();
-
-    /* Actualizar badge mes */
     document.getElementById("km-mes-badge").textContent = formatearMes(mes);
-
     aplicarFiltros();
   });
 }
 
 /* ═══════════════════════════════════════════════════════════
-   POBLAR FILTROS MARCA / MODELO / PLACA
+   POBLAR FILTROS
 ═══════════════════════════════════════════════════════════ */
 function poblarFiltrosMarcaModelo() {
   var tipos    = [...new Set(_datos.map(function(r) { return r.tipo; }).filter(Boolean))].sort();
@@ -497,14 +586,12 @@ function poblarFiltrosMarcaModelo() {
    APLICAR FILTROS
 ═══════════════════════════════════════════════════════════ */
 function aplicarFiltros() {
-  /* Si cambió el mes, recargar datos */
   var mesSel = document.getElementById("selMes").value;
   var mesActual = _datos.length > 0 ? _datos[0].mes : null;
   if (mesSel !== mesActual) {
     cargarDatosMes(mesSel);
     return;
   }
-
   var tipo   = document.getElementById("selTipo").value;
   var marca  = document.getElementById("selMarca").value;
   var modelo = document.getElementById("selModelo").value;
@@ -520,20 +607,16 @@ function aplicarFiltros() {
     return true;
   });
 
-  /* Deseleccionar fila */
   _filaSelIdx = -1;
   ocultarLapiz();
-
   renderTabla();
   actualizarSidebarStats();
-
   if (_vistaActual === "resumen") renderResumen();
-
   document.getElementById("btnExportar").disabled = _datosFiltrados.length === 0;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   RENDER TABLA DETALLE
+   RENDER TABLA
 ═══════════════════════════════════════════════════════════ */
 function renderTabla() {
   var tbody = document.getElementById("km-tbody");
@@ -548,9 +631,7 @@ function renderTabla() {
     var tr = document.createElement("tr");
     tr.dataset.idx = i;
     tr.onclick = function() { seleccionarFila(i, this); };
-
     var estadoBadge = '<span class="badge badge-' + r.estado.toLowerCase() + '">' + r.estado + '</span>';
-
     tr.innerHTML =
       '<td class="num-col">' + (i+1) + '</td>' +
       '<td><strong>' + esc(r.placa) + '</strong></td>' +
@@ -569,31 +650,23 @@ function renderTabla() {
       '<td>' + esc(r.ultActualizacion || "—") + '</td>' +
       '<td>' + estadoBadge + '</td>' +
       '<td>' + esc(r.usuario || "—") + '</td>';
-
     tbody.appendChild(tr);
   });
-
-  /* Sincronizar scroll horizontal anclado abajo con el cuerpo de la tabla */
   sincronizarScrollHorizontal();
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SINCRONIZAR SCROLL HORIZONTAL (barra anclada abajo del wrap)
+   SCROLL HORIZONTAL SINCRONIZADO
 ═══════════════════════════════════════════════════════════ */
 function sincronizarScrollHorizontal() {
-  var scrollY      = document.querySelector("#vista-detalle .tbl-scroll-y");
-  var scrollX       = document.getElementById("tblScrollX");
-  var scrollXInner  = document.getElementById("tblScrollXInner");
-  var table         = document.getElementById("km-table");
+  var scrollY     = document.querySelector("#vista-detalle .tbl-scroll-y");
+  var scrollX     = document.getElementById("tblScrollX");
+  var scrollXInner = document.getElementById("tblScrollXInner");
+  var table       = document.getElementById("km-table");
   if (!scrollY || !scrollX || !table) return;
-
-  /* Igualar el ancho del "fantasma" interno al ancho real de la tabla */
   scrollXInner.style.width = table.scrollWidth + "px";
-
-  /* Evitar duplicar listeners */
   if (scrollY.dataset.synced === "1") return;
   scrollY.dataset.synced = "1";
-
   var syncing = false;
   scrollY.addEventListener("scroll", function() {
     if (syncing) { syncing = false; return; }
@@ -611,20 +684,17 @@ function sincronizarScrollHorizontal() {
    SELECCIÓN DE FILA + LÁPIZ
 ═══════════════════════════════════════════════════════════ */
 function seleccionarFila(idx, tr) {
-  /* Si ya estaba seleccionada, deseleccionar */
   if (_filaSelIdx === idx) {
     _filaSelIdx = -1;
     tr.classList.remove("fila-sel");
     ocultarLapiz();
     return;
   }
-  /* Quitar selección anterior */
   document.querySelectorAll("#km-tbody tr.fila-sel").forEach(function(el) {
     el.classList.remove("fila-sel");
   });
   _filaSelIdx = idx;
   tr.classList.add("fila-sel");
-
   var r = _datosFiltrados[idx];
   document.getElementById("km-fila-sel").style.display = "flex";
   document.getElementById("km-sel-label").textContent = r.placa + " — " + formatearMes(r.mes);
@@ -636,18 +706,16 @@ function ocultarLapiz() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MODAL EDITAR
+   MODAL EDITAR (carga por unidad) — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function abrirModalEditar() {
   if (_filaSelIdx < 0) return;
   var r = _datosFiltrados[_filaSelIdx];
-
   document.getElementById("editMes").textContent   = formatearMes(r.mes);
   document.getElementById("editPlaca").textContent = r.placa;
   document.getElementById("editGalones").value     = r.galones || "";
   document.getElementById("editSoles").value       = r.soles   || "";
   document.getElementById("editMsg").style.display = "none";
-
   var ultReg = document.getElementById("editUltReg");
   if (r.ultActualizacion && r.ultActualizacion !== "—") {
     ultReg.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Último registro: ' + esc(r.placa) + ' — ' + esc(r.ultActualizacion) + ' — ' + esc(r.usuario);
@@ -655,7 +723,6 @@ function abrirModalEditar() {
   } else {
     ultReg.style.display = "none";
   }
-
   abrirModal("modal-editar");
 }
 
@@ -664,16 +731,13 @@ function guardarEdicion() {
   var r       = _datosFiltrados[_filaSelIdx];
   var galones = document.getElementById("editGalones").value.trim();
   var soles   = document.getElementById("editSoles").value.trim();
-
   if (galones === "" && soles === "") {
     mostrarMsgModal("editMsg", "Ingresa al menos Galones o Soles.", "error");
     return;
   }
-
   var btnGuardar = document.getElementById("btnGuardar");
   btnGuardar.disabled = true;
   btnGuardar.textContent = "Guardando…";
-
   fetchScript("guardar", {
     action:  "manual",
     mes:     r.mes,
@@ -697,7 +761,7 @@ function guardarEdicion() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MODAL CARGA MASIVA
+   MODAL CARGA MASIVA — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function abrirModalMasivo() {
   document.getElementById("masivoFile").value = "";
@@ -716,14 +780,8 @@ function inicializarDropzone() {
   var dz = document.getElementById("dropzone");
   if (dz.dataset.bound === "1") return;
   dz.dataset.bound = "1";
-
-  dz.addEventListener("dragover", function(e) {
-    e.preventDefault();
-    dz.classList.add("drag-over");
-  });
-  dz.addEventListener("dragleave", function() {
-    dz.classList.remove("drag-over");
-  });
+  dz.addEventListener("dragover", function(e) { e.preventDefault(); dz.classList.add("drag-over"); });
+  dz.addEventListener("dragleave", function() { dz.classList.remove("drag-over"); });
   dz.addEventListener("drop", function(e) {
     e.preventDefault();
     dz.classList.remove("drag-over");
@@ -734,47 +792,31 @@ function inicializarDropzone() {
 
 function validarArchivo(file) {
   if (!file) return;
-
   document.getElementById("dropzoneFilename").textContent = file.name;
   document.getElementById("dropzoneFilename").style.display = "inline-block";
-
   var reader = new FileReader();
   reader.onload = function(e) {
     var wb = new ExcelJS.Workbook();
     wb.xlsx.load(e.target.result).then(function() {
-      var ws    = wb.worksheets[0];
-      var filas = [];
-      var errores = [];
-
+      var ws = wb.worksheets[0];
+      var filas = [], errores = [];
       ws.eachRow(function(row, ri) {
-        if (ri === 1) return; /* saltar encabezado */
-        var mes    = String(row.getCell(1).value || "").trim();
-        var placa  = String(row.getCell(2).value || "").trim().toUpperCase();
+        if (ri === 1) return;
+        var mes = String(row.getCell(1).value || "").trim();
+        var placa = String(row.getCell(2).value || "").trim().toUpperCase();
         var galones = row.getCell(3).value;
-        var soles   = row.getCell(4).value;
-
+        var soles = row.getCell(4).value;
         if (!mes || !placa) { errores.push("Fila " + ri + ": Mes o Placa vacíos"); return; }
-        if (galones !== null && galones !== "" && isNaN(parseFloat(galones))) {
-          errores.push("Fila " + ri + ": Galones no es número válido"); return;
-        }
-        if (soles !== null && soles !== "" && isNaN(parseFloat(soles))) {
-          errores.push("Fila " + ri + ": Soles no es número válido"); return;
-        }
+        if (galones !== null && galones !== "" && isNaN(parseFloat(galones))) { errores.push("Fila " + ri + ": Galones no es número válido"); return; }
+        if (soles !== null && soles !== "" && isNaN(parseFloat(soles))) { errores.push("Fila " + ri + ": Soles no es número válido"); return; }
         filas.push({ mes: mes, placa: placa, galones: galones, soles: soles });
       });
-
       _masivoFilas = filas;
       document.getElementById("masivoPreview").style.display = "block";
       document.getElementById("masivoInfo").textContent = filas.length + " fila(s) válidas encontradas.";
-
       var errDiv = document.getElementById("masivoErrores");
-      if (errores.length > 0) {
-        errDiv.style.display = "block";
-        errDiv.innerHTML = "<strong>Advertencias:</strong><br>" + errores.map(esc).join("<br>");
-      } else {
-        errDiv.style.display = "none";
-      }
-
+      if (errores.length > 0) { errDiv.style.display = "block"; errDiv.innerHTML = "<strong>Advertencias:</strong><br>" + errores.map(esc).join("<br>"); }
+      else { errDiv.style.display = "none"; }
       document.getElementById("btnCargarMasivo").disabled = filas.length === 0;
     });
   };
@@ -786,31 +828,19 @@ function ejecutarCargaMasiva() {
   var btn = document.getElementById("btnCargarMasivo");
   btn.disabled = true;
   btn.textContent = "Cargando…";
-
   document.getElementById("progressWrap").style.display = "flex";
-
-  /* Dividir en lotes de 10 filas para no superar el límite de URL */
   var LOTE = 10;
   var lotes = [];
-  for (var i = 0; i < _masivoFilas.length; i += LOTE) {
-    lotes.push(_masivoFilas.slice(i, i + LOTE));
-  }
-
-  var totalExitosas  = 0;
-  var totalRechazadas = [];
-  var loteIdx = 0;
-
+  for (var i = 0; i < _masivoFilas.length; i += LOTE) lotes.push(_masivoFilas.slice(i, i + LOTE));
+  var totalExitosas = 0, totalRechazadas = [], loteIdx = 0;
   function actualizarProgreso() {
     var pct = Math.round((loteIdx / lotes.length) * 100);
     document.getElementById("progressBarFill").style.width = pct + "%";
     document.getElementById("progressBarText").textContent = pct + "%";
-    document.getElementById("progressLabel").textContent =
-      loteIdx + " de " + lotes.length + " lotes procesados (" + _masivoFilas.length + " filas en total)";
+    document.getElementById("progressLabel").textContent = loteIdx + " de " + lotes.length + " lotes procesados (" + _masivoFilas.length + " filas en total)";
   }
-
   function procesarLote() {
     if (loteIdx >= lotes.length) {
-      /* Todos los lotes terminados */
       document.getElementById("progressBarFill").style.width = "100%";
       document.getElementById("progressBarText").textContent = "100%";
       btn.disabled = false;
@@ -818,49 +848,36 @@ function ejecutarCargaMasiva() {
       var txt = "Exitosas: " + totalExitosas;
       if (totalRechazadas.length > 0) txt += " | Rechazadas: " + totalRechazadas.length;
       mostrarMsgModal("masivoMsg", txt, totalRechazadas.length > 0 ? "warn" : "ok");
-      setTimeout(function() {
-        cerrarModal("modal-masivo");
-        cargarDatosMes(document.getElementById("selMes").value);
-      }, 1200);
+      setTimeout(function() { cerrarModal("modal-masivo"); cargarDatosMes(document.getElementById("selMes").value); }, 1200);
       return;
     }
-
-    fetchScript("masivo", {
-      action:  "masivo",
-      filas:   lotes[loteIdx],
-      usuario: _userName
-    }, function(res) {
+    fetchScript("masivo", { action: "masivo", filas: lotes[loteIdx], usuario: _userName }, function(res) {
       if (res.exitosas !== undefined) {
         totalExitosas += res.exitosas || 0;
         if (res.rechazadas) totalRechazadas = totalRechazadas.concat(res.rechazadas);
       }
       loteIdx++;
       actualizarProgreso();
-      /* Pequeña pausa entre lotes para no saturar */
       setTimeout(procesarLote, 500);
     });
   }
-
   actualizarProgreso();
   procesarLote();
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DESCARGAR PLANTILLA
+   DESCARGAR PLANTILLA — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function descargarPlantilla() {
   var mes = document.getElementById("selMes").value;
   var wb  = new ExcelJS.Workbook();
   var ws  = wb.addWorksheet("Carga");
-
   ws.columns = [
     { header: "Mes",     key: "mes",     width: 12 },
     { header: "Placa",   key: "placa",   width: 14 },
     { header: "Galones", key: "galones", width: 12 },
     { header: "Soles",   key: "soles",   width: 12 }
   ];
-
-  /* Estilo encabezado */
   var hRow = ws.getRow(1);
   hRow.eachCell(function(cell) {
     cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
@@ -868,18 +885,14 @@ function descargarPlantilla() {
     cell.alignment = { horizontal: "center", vertical: "middle" };
   });
   hRow.height = 20;
-
-  /* Fila ejemplo con mes pre-llenado */
   var eRow = ws.addRow([mes, "", "", ""]);
   eRow.getCell(1).font = { color: { argb: "FF185FA5" }, italic: true };
-
   ws.getRow(1).commit();
-
   wb.xlsx.writeBuffer().then(function(buf) {
     var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement("a");
-    a.href   = url;
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
     a.download = "Plantilla_ControlKM_" + mes.replace("-","") + ".xlsx";
     document.body.appendChild(a);
     a.click();
@@ -889,14 +902,13 @@ function descargarPlantilla() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   EXPORTAR XLS
+   EXPORTAR XLS — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function exportarXLS() {
   if (_datosFiltrados.length === 0) return;
   var mes = document.getElementById("selMes").value;
   var wb  = new ExcelJS.Workbook();
   var ws  = wb.addWorksheet("Control KM", { views: [{ state: "frozen", ySplit: 1 }] });
-
   ws.columns = [
     { header: "#",               width: 5  },
     { header: "Placa",           width: 12 },
@@ -916,21 +928,14 @@ function exportarXLS() {
     { header: "Estado",          width: 14 },
     { header: "Usuario",         width: 18 }
   ];
-
   var hRow = ws.getRow(1);
   hRow.eachCell(function(cell) {
     cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
     cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF185FA5" } };
     cell.alignment = { horizontal: "center", vertical: "middle" };
-    cell.border    = {
-      top: { style: "thin", color: { argb: "FF0C447C" } },
-      bottom: { style: "thin", color: { argb: "FF0C447C" } },
-      left: { style: "thin", color: { argb: "FF0C447C" } },
-      right: { style: "thin", color: { argb: "FF0C447C" } }
-    };
+    cell.border    = { top: { style: "thin", color: { argb: "FF0C447C" } }, bottom: { style: "thin", color: { argb: "FF0C447C" } }, left: { style: "thin", color: { argb: "FF0C447C" } }, right: { style: "thin", color: { argb: "FF0C447C" } } };
   });
   hRow.height = 20;
-
   _datosFiltrados.forEach(function(r, i) {
     var row = ws.addRow([
       i+1, r.placa, r.tipo, r.marca, r.modelo,
@@ -943,7 +948,6 @@ function exportarXLS() {
       parseFloat(r.costoKM)    || "",
       r.ultActualizacion, r.estado, r.usuario
     ]);
-    /* Aplicar numFmt por celda para garantizar formato */
     [6,8,10].forEach(function(col){ row.getCell(col).numFmt = "#,##0"; });
     [11,12].forEach(function(col){ row.getCell(col).numFmt = "#,##0.00"; });
     [13,14].forEach(function(col){ row.getCell(col).numFmt = '"S/ "#,##0.00'; });
@@ -951,22 +955,16 @@ function exportarXLS() {
     row.eachCell(function(cell) {
       cell.font      = { size: 10 };
       cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: isAlt ? "FFEDF3FB" : "FFFFFFFF" } };
-      cell.border    = {
-        top: { style: "hair", color: { argb: "FFDEE2E6" } },
-        bottom: { style: "hair", color: { argb: "FFDEE2E6" } },
-        left: { style: "hair", color: { argb: "FFDEE2E6" } },
-        right: { style: "hair", color: { argb: "FFDEE2E6" } }
-      };
+      cell.border    = { top: { style: "hair", color: { argb: "FFDEE2E6" } }, bottom: { style: "hair", color: { argb: "FFDEE2E6" } }, left: { style: "hair", color: { argb: "FFDEE2E6" } }, right: { style: "hair", color: { argb: "FFDEE2E6" } } };
       cell.alignment = { vertical: "middle" };
     });
     row.height = 15;
   });
-
   wb.xlsx.writeBuffer().then(function(buf) {
     var blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement("a");
-    a.href   = url;
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
     a.download = "ControlKM_" + mes.replace("-","") + ".xlsx";
     document.body.appendChild(a);
     a.click();
@@ -976,33 +974,28 @@ function exportarXLS() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SIDEBAR STATS
+   SIDEBAR STATS — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function actualizarSidebarStats() {
   var d = _datosFiltrados;
   if (d.length === 0) { document.getElementById("sb-stats").style.display = "none"; return; }
-
   document.getElementById("sb-stats").style.display = "block";
   document.getElementById("sbTotal").textContent = d.length;
   document.getElementById("sbActualizadas").textContent = d.filter(function(r) { return r.estado === "ACTUALIZADO"; }).length;
   document.getElementById("sbPendientes").textContent   = d.filter(function(r) { return r.estado === "PENDIENTE" || r.estado === "PARCIAL"; }).length;
-
   var kmTotal = d.reduce(function(s, r) { return s + (parseFloat(r.totalKM) || 0); }, 0);
   document.getElementById("sbKM").textContent = kmTotal > 0 ? Math.round(kmTotal).toLocaleString("en-US") : "—";
-
   var galTotal = d.reduce(function(s, r) { return s + (parseFloat(r.galones) || 0); }, 0);
   document.getElementById("sbGalones").textContent = galTotal > 0 ? Math.round(galTotal).toLocaleString("en-US") : "—";
-
   var solesTotal = d.reduce(function(s, r) { return s + (parseFloat(r.soles) || 0); }, 0);
   document.getElementById("sbSoles").textContent = solesTotal > 0 ? "S/ " + solesTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 }
 
 /* ═══════════════════════════════════════════════════════════
-   VISTA RESUMEN
+   VISTA RESUMEN — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function renderResumen() {
   var d = _datosFiltrados.filter(function(r) { return parseFloat(r.galones) > 0; });
-
   if (d.length === 0) {
     document.getElementById("res-stats").style.display  = "none";
     document.getElementById("res-charts").style.display = "none";
@@ -1012,8 +1005,6 @@ function renderResumen() {
   document.getElementById("res-empty").style.display  = "none";
   document.getElementById("res-stats").style.display  = "grid";
   document.getElementById("res-charts").style.display = "grid";
-
-  /* Stats */
   var kmTotal   = d.reduce(function(s,r){ return s+(parseFloat(r.totalKM)||0); }, 0);
   var galTotal  = d.reduce(function(s,r){ return s+(parseFloat(r.galones)||0); }, 0);
   var solesTotal= d.reduce(function(s,r){ return s+(parseFloat(r.soles)||0); }, 0);
@@ -1021,13 +1012,11 @@ function renderResumen() {
   var costoArr  = d.filter(function(r){ return parseFloat(r.costoKM)>0; }).map(function(r){ return parseFloat(r.costoKM); });
   var rendProm  = rendArr.length  ? rendArr.reduce(function(a,b){return a+b;},0)/rendArr.length   : 0;
   var costoProm = costoArr.length ? costoArr.reduce(function(a,b){return a+b;},0)/costoArr.length : 0;
-
   document.getElementById("resKMTotal").textContent  = Math.round(kmTotal).toLocaleString("en-US");
   document.getElementById("resGalTotal").textContent = Math.round(galTotal).toLocaleString("en-US");
   document.getElementById("resRend").textContent     = rendProm  ? rendProm.toFixed(2)  : "—";
   document.getElementById("resCosto").textContent    = costoProm ? "S/ " + costoProm.toFixed(2) : "—";
   document.getElementById("resSolesTotal").textContent = "S/ " + solesTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   renderGalones();
   renderRendimiento();
   renderCosto();
@@ -1035,7 +1024,6 @@ function renderResumen() {
   renderGastado();
 }
 
-/* ── HELPERS DE AGRUPACIÓN ── */
 function agruparPor(campo, metrica) {
   var grupos = {};
   _datosFiltrados.forEach(function(r) {
@@ -1058,9 +1046,7 @@ function agruparRendPor(campo) {
     grupos[key].cnt++;
   });
   var res = {};
-  Object.keys(grupos).forEach(function(k) {
-    res[k] = grupos[k].sum / grupos[k].cnt;
-  });
+  Object.keys(grupos).forEach(function(k) { res[k] = grupos[k].sum / grupos[k].cnt; });
   return res;
 }
 
@@ -1075,33 +1061,25 @@ function agruparCostoPor(campo) {
     grupos[key].cnt++;
   });
   var res = {};
-  Object.keys(grupos).forEach(function(k) {
-    res[k] = grupos[k].sum / grupos[k].cnt;
-  });
+  Object.keys(grupos).forEach(function(k) { res[k] = grupos[k].sum / grupos[k].cnt; });
   return res;
 }
 
-/* ── GRÁFICO DONA ── */
 function renderGalones() {
   var campo  = document.getElementById("filtGalones").value;
   var grupos = agruparPor(campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo", "galones");
   var keys   = Object.keys(grupos).sort(function(a,b){ return grupos[b]-grupos[a]; });
   var total  = keys.reduce(function(s,k){ return s+grupos[k]; }, 0);
-
   var COLORS = ["#185fa5","#1D9E75","#BA7517","#A32D2D","#534AB7","#6c757d"];
   var svg = '<circle cx="18" cy="18" r="14" fill="none" stroke="var(--border-color)" stroke-width="5"/>';
-  var offset = 22; /* rotación inicial */
-  var total_circ = 88; /* 2*π*14 ≈ 87.96 */
-
+  var offset = 22, total_circ = 88;
   keys.forEach(function(k, i) {
     var pct  = total > 0 ? grupos[k] / total : 0;
     var dash = pct * total_circ;
     svg += '<circle cx="18" cy="18" r="14" fill="none" stroke="' + COLORS[i % COLORS.length] + '" stroke-width="5" stroke-dasharray="' + dash.toFixed(2) + ' ' + total_circ + '" stroke-dashoffset="' + (-offset) + '" stroke-linecap="round"/>';
     offset += dash;
   });
-
   document.getElementById("donutSvg").innerHTML = svg;
-
   var leg = "";
   keys.slice(0,6).forEach(function(k,i) {
     var pct = total > 0 ? ((grupos[k]/total)*100).toFixed(0) : 0;
@@ -1110,7 +1088,6 @@ function renderGalones() {
   document.getElementById("donutLegend").innerHTML = leg;
 }
 
-/* ── BARRAS HORIZONTALES ── */
 function renderBarras(containerId, grupos, fmtFn, color) {
   var keys   = Object.keys(grupos).sort(function(a,b){ return grupos[b]-grupos[a]; });
   var maxVal = keys.length ? grupos[keys[0]] : 1;
@@ -1118,14 +1095,7 @@ function renderBarras(containerId, grupos, fmtFn, color) {
   keys.forEach(function(k) {
     var val = grupos[k];
     var pct = (val / maxVal * 100).toFixed(1);
-    html +=
-      '<div class="bar-row">' +
-        '<span class="bar-label" title="' + esc(k) + '">' + esc(k) + '</span>' +
-        '<div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '">' +
-          '<span class="bar-val">' + fmtFn(val) + '</span>' +
-        '</div></div>' +
-        '<span class="bar-num">' + fmtFn(val) + '</span>' +
-      '</div>';
+    html += '<div class="bar-row"><span class="bar-label" title="' + esc(k) + '">' + esc(k) + '</span><div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"><span class="bar-val">' + fmtFn(val) + '</span></div></div><span class="bar-num">' + fmtFn(val) + '</span></div>';
   });
   document.getElementById(containerId).innerHTML = html || '<div class="empty-msg">Sin datos.</div>';
 }
@@ -1135,7 +1105,6 @@ function renderRendimiento() {
   var key    = campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
   var grupos = agruparRendPor(key);
   renderBarras("barRendimiento", grupos, function(v){ return v.toFixed(2); }, "#185fa5");
-  /* promedio global */
   var arr = Object.values(grupos);
   var avg = arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : 0;
   document.getElementById("avgRend").textContent = avg ? "Promedio flota: " + avg.toFixed(2) + " km/gal" : "";
@@ -1157,40 +1126,28 @@ function renderGastado() {
   document.getElementById("avgGastado").textContent = total ? "Total: S/ " + Math.round(total).toLocaleString("en-US") : "";
 }
 
-/* ── RANKING ── */
 function renderRanking() {
   var campo  = document.getElementById("filtRanking").value;
   var key    = campo === "unidad" ? "placa" : campo === "tipo" ? "tipo" : campo === "marca" ? "marca" : "modelo";
   var grupos = agruparRendPor(key);
   var sorted = Object.keys(grupos).sort(function(a,b){ return grupos[b]-grupos[a]; });
-
-  function filaRank(k, i, total) {
-    var val  = grupos[k];
-    var isTop = i < 3;
-    return '<tr>' +
-      '<td class="rank-num">' + (i+1) + '</td>' +
-      '<td><strong>' + esc(k) + '</strong></td>' +
-      '<td><strong>' + val.toFixed(2) + '</strong></td>' +
-      '<td><span class="badge-trend ' + (isTop ? 'trend-up' : 'trend-dn') + '">' + (isTop ? '↑' : '↓') + '</span></td>' +
-    '</tr>';
+  function filaRank(k, i) {
+    var val = grupos[k], isTop = i < 3;
+    return '<tr><td class="rank-num">' + (i+1) + '</td><td><strong>' + esc(k) + '</strong></td><td><strong>' + val.toFixed(2) + '</strong></td><td><span class="badge-trend ' + (isTop ? 'trend-up' : 'trend-dn') + '">' + (isTop ? '↑' : '↓') + '</span></td></tr>';
   }
-
-  var top3 = sorted.slice(0, 3);
-  var bot3 = sorted.slice(-3).reverse();
-
+  var top3 = sorted.slice(0, 3), bot3 = sorted.slice(-3).reverse();
   var topHTML = '<thead><tr><th>#</th><th>' + campo.charAt(0).toUpperCase()+campo.slice(1) + '</th><th>km/gal</th><th></th></tr></thead><tbody>';
-  top3.forEach(function(k,i){ topHTML += filaRank(k,i,top3.length); });
+  top3.forEach(function(k,i){ topHTML += filaRank(k,i); });
   topHTML += '</tbody>';
   document.getElementById("rankTop").innerHTML = topHTML;
-
   var botHTML = '<thead><tr><th>#</th><th>' + campo.charAt(0).toUpperCase()+campo.slice(1) + '</th><th>km/gal</th><th></th></tr></thead><tbody>';
-  bot3.forEach(function(k,i){ botHTML += filaRank(k, sorted.length - bot3.length + i, bot3.length); });
+  bot3.forEach(function(k,i){ botHTML += filaRank(k, sorted.length - bot3.length + i); });
   botHTML += '</tbody>';
   document.getElementById("rankBot").innerHTML = botHTML;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TOGGLE VISTA
+   TOGGLE VISTA — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function switchVista(vista, btn) {
   _vistaActual = vista;
@@ -1198,50 +1155,238 @@ function switchVista(vista, btn) {
   document.querySelectorAll(".toggle-btn").forEach(function(el){ el.classList.remove("active"); });
   document.getElementById("vista-" + vista).classList.add("active");
   btn.classList.add("active");
-
   if (vista === "resumen" && _datosFiltrados.length > 0) renderResumen();
 }
 
 /* ═══════════════════════════════════════════════════════════
-   COMUNICACIÓN CON APPS SCRIPT (JSONP — igual que addin seguimiento)
-   GET  → leer datos / meses
-   POST → guardar manual / masivo (via JSONP con body en query param)
+   ═══════════════════════════════════════════════════════════
+   GESTIONAR ACTIVOS — NUEVO
+   ═══════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════ */
+function abrirModalActivos() {
+  _activoEditando = null;
+  document.getElementById("activo-form").style.display = "none";
+  document.getElementById("activoMsg").style.display = "none";
+  abrirModal("modal-activos");
+  cargarCatalogo();
+}
+
+function cargarCatalogo() {
+  document.getElementById("activos-loading").style.display = "block";
+  document.getElementById("activosTblWrap").style.display  = "none";
+  fetchScript("catalogo", {}, function(res) {
+    document.getElementById("activos-loading").style.display = "none";
+    document.getElementById("activosTblWrap").style.display  = "block";
+    if (!res.success) {
+      document.getElementById("activos-tbody").innerHTML = '<tr><td colspan="7" class="empty-msg" style="color:#a32d2d">Error al cargar catálogo.</td></tr>';
+      return;
+    }
+    renderTablaCatalogo(res.data || []);
+  });
+}
+
+function renderTablaCatalogo(lista) {
+  var tbody = document.getElementById("activos-tbody");
+  tbody.innerHTML = "";
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">No hay activos registrados.</td></tr>';
+    return;
+  }
+  lista.forEach(function(u, i) {
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td class="num-col">' + (i+1) + '</td>' +
+      '<td><strong>' + esc(u.placa) + '</strong></td>' +
+      '<td>' + esc(u.marca) + '</td>' +
+      '<td>' + esc(u.modelo) + '</td>' +
+      '<td>' + esc(u.tipo) + '</td>' +
+      '<td style="font-family:monospace;font-size:11px">' + esc(u.deviceId) + '</td>' +
+      '<td style="text-align:center">' +
+        '<button class="btn-act-edit" title="Editar" onclick="mostrarFormActivo(\'' + esc(u.placa) + '\')">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+        '</button>' +
+        '<button class="btn-act-del" title="Eliminar" onclick="pedirEliminarActivo(\'' + esc(u.placa) + '\')">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
+        '</button>' +
+      '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function mostrarFormActivo(placa) {
+  _activoEditando = placa === "nuevo" ? null : placa;
+  document.getElementById("activo-form").style.display = "block";
+  document.getElementById("activoMsg").style.display = "none";
+  document.getElementById("btnGuardarActivo").disabled = false;
+  document.getElementById("btnGuardarActivo").textContent = "Guardar activo";
+
+  if (_activoEditando) {
+    /* Editar — buscar datos en la tabla actual */
+    var rows = document.querySelectorAll("#activos-tbody tr");
+    var datos = null;
+    rows.forEach(function(row) {
+      var cells = row.querySelectorAll("td");
+      if (cells.length > 1 && cells[1].textContent.trim() === placa) {
+        datos = {
+          placa:    cells[1].textContent.trim(),
+          marca:    cells[2].textContent.trim(),
+          modelo:   cells[3].textContent.trim(),
+          tipo:     cells[4].textContent.trim(),
+          deviceId: cells[5].textContent.trim()
+        };
+      }
+    });
+    if (datos) {
+      /* Placa y Device ID bloqueados en edición */
+      var pInput = document.getElementById("activoPlaca");
+      pInput.value = datos.placa;
+      pInput.readOnly = true;
+      pInput.style.background = "var(--primary-light)";
+      pInput.style.color = "var(--primary)";
+
+      document.getElementById("activoMarca").value    = datos.marca;
+      document.getElementById("activoModelo").value   = datos.modelo;
+      document.getElementById("activoTipo").value     = datos.tipo;
+
+      var dInput = document.getElementById("activoDeviceId");
+      dInput.value = datos.deviceId;
+      dInput.readOnly = true;
+      dInput.style.background = "var(--primary-light)";
+      dInput.style.color = "var(--primary)";
+    }
+  } else {
+    /* Nuevo — campos libres */
+    document.getElementById("activoPlaca").value    = "";
+    document.getElementById("activoMarca").value    = "";
+    document.getElementById("activoModelo").value   = "";
+    document.getElementById("activoTipo").value     = "";
+    document.getElementById("activoDeviceId").value = "";
+
+    var pIn = document.getElementById("activoPlaca");
+    pIn.readOnly = false;
+    pIn.style.background = "";
+    pIn.style.color = "";
+
+    var dIn = document.getElementById("activoDeviceId");
+    dIn.readOnly = false;
+    dIn.style.background = "";
+    dIn.style.color = "";
+  }
+
+  /* Scroll al formulario */
+  document.getElementById("activo-form").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelarFormActivo() {
+  document.getElementById("activo-form").style.display = "none";
+  _activoEditando = null;
+}
+
+function formatearPlacaInput(input) {
+  /* Formato automático ABC-123 */
+  var val = input.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (val.length > 3) {
+    val = val.substring(0, 3) + "-" + val.substring(3, 6);
+  }
+  input.value = val;
+}
+
+function guardarActivo() {
+  var placa    = document.getElementById("activoPlaca").value.trim().toUpperCase();
+  var marca    = document.getElementById("activoMarca").value.trim().toUpperCase();
+  var modelo   = document.getElementById("activoModelo").value.trim().toUpperCase();
+  var tipo     = document.getElementById("activoTipo").value.trim().toUpperCase();
+  var deviceId = document.getElementById("activoDeviceId").value.trim();
+
+  if (!placa || !marca || !modelo || !tipo) {
+    mostrarMsgModal("activoMsg", "Placa, Marca, Modelo y Tipo son obligatorios.", "error");
+    return;
+  }
+  if (!deviceId) deviceId = "0";
+
+  var btn = document.getElementById("btnGuardarActivo");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  var accion = _activoEditando ? "editarActivo" : "agregarActivo";
+  fetchScript(accion, {
+    action:   accion,
+    placa:    placa,
+    marca:    marca,
+    modelo:   modelo,
+    tipo:     tipo,
+    deviceId: deviceId,
+    usuario:  _userName
+  }, function(res) {
+    btn.disabled = false;
+    btn.textContent = "Guardar activo";
+    if (res.success) {
+      var msg = _activoEditando
+        ? "Activo actualizado correctamente."
+        : "Activo agregado. Se contabilizará a partir del siguiente mes.";
+      mostrarMsgModal("activoMsg", msg, "ok");
+      setTimeout(function() {
+        cancelarFormActivo();
+        cargarCatalogo();
+      }, 1000);
+    } else {
+      mostrarMsgModal("activoMsg", res.error || "Error al guardar.", "error");
+    }
+  });
+}
+
+function pedirEliminarActivo(placa) {
+  _activoEliminar = placa;
+  document.getElementById("eliminarPlacaLabel").textContent = placa;
+  document.getElementById("eliminarMsg").style.display = "none";
+  document.getElementById("btnConfirmarEliminar").disabled = false;
+  document.getElementById("btnConfirmarEliminar").textContent = "Eliminar";
+  abrirModal("modal-confirmar-eliminar");
+}
+
+function confirmarEliminarActivo() {
+  if (!_activoEliminar) return;
+  var btn = document.getElementById("btnConfirmarEliminar");
+  btn.disabled = true;
+  btn.textContent = "Eliminando…";
+
+  fetchScript("eliminarActivo", {
+    action:  "eliminarActivo",
+    placa:   _activoEliminar,
+    usuario: _userName
+  }, function(res) {
+    btn.disabled = false;
+    btn.textContent = "Eliminar";
+    if (res.success) {
+      cerrarModal("modal-confirmar-eliminar");
+      _activoEliminar = null;
+      cargarCatalogo();
+    } else {
+      mostrarMsgModal("eliminarMsg", res.error || "Error al eliminar.", "error");
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMUNICACIÓN CON APPS SCRIPT — SIN CAMBIOS
 ═══════════════════════════════════════════════════════════ */
 function fetchScript(action, params, callback) {
   var cbName = "km_cb_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
-
-  /* Registrar callback global temporal */
   window[cbName] = function(data) {
     try { delete window[cbName]; } catch(e) {}
     callback(data);
   };
-
   var tag = document.createElement("script");
-
   if (action === "meses") {
     tag.src = URL_SCRIPT + "?action=meses&callback=" + cbName + "&nocache=" + Date.now();
-
   } else if (action === "leer") {
-    tag.src = URL_SCRIPT + "?action=leer&mes=" + encodeURIComponent(params.mes) +
-              "&callback=" + cbName + "&nocache=" + Date.now();
-
+    tag.src = URL_SCRIPT + "?action=leer&mes=" + encodeURIComponent(params.mes) + "&callback=" + cbName + "&nocache=" + Date.now();
   } else {
-    /* guardar / masivo — se envía el payload como JSON en query string */
     var body = encodeURIComponent(JSON.stringify(params));
-    tag.src = URL_SCRIPT + "?action=" + encodeURIComponent(action) +
-              "&body=" + body +
-              "&callback=" + cbName + "&nocache=" + Date.now();
+    tag.src = URL_SCRIPT + "?action=" + encodeURIComponent(action) + "&body=" + body + "&callback=" + cbName + "&nocache=" + Date.now();
   }
-
-  tag.onerror = function() {
-    try { tag.remove(); } catch(e) {}
-    callback({ success: false, error: "Error de red al conectar con el servidor." });
-  };
-
-  tag.onload = function() {
-    try { tag.remove(); } catch(e) {}
-  };
-
+  tag.onerror = function() { try { tag.remove(); } catch(e) {} callback({ success: false, error: "Error de red al conectar con el servidor." }); };
+  tag.onload  = function() { try { tag.remove(); } catch(e) {} };
   document.body.appendChild(tag);
 }
 
@@ -1250,9 +1395,7 @@ function fetchScript(action, params, callback) {
 ═══════════════════════════════════════════════════════════ */
 function abrirModal(id) { document.getElementById(id).style.display = "flex"; }
 function cerrarModal(id) { document.getElementById(id).style.display = "none"; }
-function cerrarModalSiOverlay(e, id) {
-  if (e.target === document.getElementById(id)) cerrarModal(id);
-}
+function cerrarModalSiOverlay(e, id) { if (e.target === document.getElementById(id)) cerrarModal(id); }
 function mostrarMsgModal(id, txt, tipo) {
   var el = document.getElementById(id);
   el.textContent = txt;
@@ -1263,12 +1406,8 @@ function mostrarMsgModal(id, txt, tipo) {
 /* ═══════════════════════════════════════════════════════════
    HELPERS UI
 ═══════════════════════════════════════════════════════════ */
-function setLoading(on) {
-  document.getElementById("km-loading").style.display = on ? "flex" : "none";
-}
-function mostrarError(txt) {
-  document.getElementById("km-tbody").innerHTML = '<tr><td colspan="17" class="empty-msg" style="color:#a32d2d">' + esc(txt) + '</td></tr>';
-}
+function setLoading(on) { document.getElementById("km-loading").style.display = on ? "flex" : "none"; }
+function mostrarError(txt) { document.getElementById("km-tbody").innerHTML = '<tr><td colspan="17" class="empty-msg" style="color:#a32d2d">' + esc(txt) + '</td></tr>'; }
 function formatearMes(m) {
   if (!m) return "—";
   var meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
