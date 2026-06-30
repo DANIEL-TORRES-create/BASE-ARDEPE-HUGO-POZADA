@@ -285,7 +285,7 @@ body {
 .tbl-scroll-x::-webkit-scrollbar-thumb:hover { background: #98a3ae; }
 .tbl-scroll-x-inner { height: 1px; }
 
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
 
 thead th {
   position: sticky;
@@ -294,7 +294,7 @@ thead th {
   padding: 7px 7px;
   text-align: left;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 10px;
   color: #fff;
   background: var(--primary);
   white-space: nowrap;
@@ -779,3 +779,130 @@ tbody tr:last-child td { border-bottom: none; }
 
 .trend-up { background: var(--success-bg); color: var(--success); }
 .trend-dn { background: var(--danger-bg);  color: var(--danger); }
+
+/* ── BOTÓN GESTIONAR ACTIVOS (header) ── */
+.btn-activos {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid var(--border-color);
+  background: #fff;
+  color: var(--muted);
+  transition: border-color .15s, color .15s;
+}
+.btn-activos:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── MODAL XL para activos ── */
+.modal-box-xl {
+  width: 680px;
+  max-width: 96vw;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+/* Botón "Nuevo activo" dentro del título */
+.btn-activos-nuevo {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1.5px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  transition: background .15s;
+}
+.btn-activos-nuevo:hover { background: var(--primary-dark); }
+
+/* Grid del formulario activo */
+.activo-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 12px;
+  background: var(--primary-light);
+  border-radius: 8px;
+  border: 1px solid #b5d4f4;
+}
+
+/* Hint bajo Device ID */
+.activo-hint {
+  font-size: 10px;
+  color: var(--muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.activo-hint svg { flex-shrink: 0; margin-top: 1px; }
+
+/* Tabla catálogo dentro del modal */
+.activos-tbl-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-top: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.activos-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.activos-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 7px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 10px;
+  color: #fff;
+  background: var(--primary);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.activos-table tbody td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #f0f2f5;
+  color: #1a1a2e;
+  vertical-align: middle;
+}
+
+.activos-table tbody tr:hover td { background: #f5f8fc; }
+.activos-table tbody tr:last-child td { border-bottom: none; }
+
+/* Botones editar / eliminar en tabla activos */
+.btn-act-edit, .btn-act-del {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s;
+  margin: 0 2px;
+}
+.btn-act-edit { background: #fff; color: var(--primary); }
+.btn-act-edit:hover { background: var(--primary-light); border-color: var(--primary); }
+.btn-act-del  { background: #fff; color: var(--danger); }
+.btn-act-del:hover  { background: var(--danger-bg); border-color: var(--danger); }
