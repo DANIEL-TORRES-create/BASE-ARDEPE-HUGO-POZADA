@@ -412,7 +412,7 @@
           <input type="text" id="activoDeviceId" placeholder="Ej: b4A2" class="mfi-input"/>
           <div class="activo-hint">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Si no tienes el ID, ingresa <strong>0</strong> por ahora. Sin Device ID no se registrarán datos de odómetro. Consulta a tu Fleet Manager.
+            La placa debe ser la misma que figura en MyGeotab. Si no tienes el Device ID, ingresa <strong>0</strong> por ahora — sin Device ID no se registrarán datos de odómetro. Consulta a tu Fleet Manager.
           </div>
         </div>
       </div>
@@ -1303,6 +1303,25 @@ function guardarActivo() {
     return;
   }
   if (!deviceId) deviceId = "0";
+
+  /* Validar duplicados solo al agregar (no al editar) */
+  if (!_activoEditando) {
+    var filas = document.querySelectorAll("#activos-tbody tr");
+    for (var fi = 0; fi < filas.length; fi++) {
+      var cells = filas[fi].querySelectorAll("td");
+      if (cells.length < 6) continue;
+      var placaExist    = cells[1].textContent.trim().toUpperCase();
+      var deviceIdExist = cells[5].textContent.trim();
+      if (placaExist === placa) {
+        mostrarMsgModal("activoMsg", "La placa " + placa + " ya existe. Favor de editarla o eliminarla y volver a ingresar.", "error");
+        return;
+      }
+      if (deviceId !== "0" && deviceIdExist === deviceId) {
+        mostrarMsgModal("activoMsg", "El Device ID " + deviceId + " ya está asignado a " + placaExist + ". Favor de editarlo o eliminarlo y volver a ingresar.", "error");
+        return;
+      }
+    }
+  }
 
   var btn = document.getElementById("btnGuardarActivo");
   btn.disabled = true;
