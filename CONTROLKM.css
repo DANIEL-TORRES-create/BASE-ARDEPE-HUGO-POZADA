@@ -250,8 +250,40 @@ body {
 .btn-export:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── TABLA ── */
-.tbl-wrap { flex: 1; overflow: hidden; margin: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: #fff; }
-.tbl-scroll { overflow: auto; max-height: 100%; }
+.tbl-wrap {
+  flex: 1;
+  overflow: hidden;
+  margin: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scroll vertical interno (cuerpo de tabla) — el overflow-x real ocurre aquí,
+   pero se sincroniza visualmente con la barra inferior anclada via JS */
+.tbl-scroll-y {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1;
+}
+.tbl-scroll-y::-webkit-scrollbar:horizontal { height: 0; } /* ocultar barra nativa, usamos la propia */
+.tbl-scroll-y { scrollbar-width: thin; }
+
+/* Scroll horizontal SIEMPRE visible, anclado abajo del wrap — no hay que
+   bajar hasta el final del scroll vertical para verlo */
+.tbl-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.tbl-scroll-x::-webkit-scrollbar { height: 11px; }
+.tbl-scroll-x::-webkit-scrollbar-track { background: #f0f2f5; }
+.tbl-scroll-x::-webkit-scrollbar-thumb { background: #b9c2cc; border-radius: 6px; }
+.tbl-scroll-x::-webkit-scrollbar-thumb:hover { background: #98a3ae; }
+.tbl-scroll-x-inner { height: 1px; }
 
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
 
@@ -270,6 +302,9 @@ thead th {
   letter-spacing: .03em;
 }
 
+/* Encabezados de columnas principales un poco más oscuros */
+thead th.th-principal { background: var(--primary-dark); }
+
 tbody td {
   padding: 5px 7px;
   border-bottom: 1px solid #f0f2f5;
@@ -277,6 +312,12 @@ tbody td {
   vertical-align: middle;
   white-space: nowrap;
 }
+
+/* Columnas/datos principales sombreadas ligeramente para destacar */
+td.col-principal, th.th-principal { background-color: #f3f8fd; }
+thead th.th-principal { background-color: var(--primary-dark); }
+tbody tr:hover td.col-principal { background-color: #e9f2fb; }
+tbody tr.fila-sel td.col-principal { background-color: #d6e9fa !important; }
 
 tbody tr:hover td { background: #f5f8fc; cursor: pointer; }
 tbody tr.fila-sel td { background: var(--primary-light) !important; }
@@ -318,6 +359,79 @@ tbody tr:last-child td { border-bottom: none; }
   padding: 18px;
   width: 340px;
   box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+
+.modal-box-lg {
+  width: 460px;
+}
+
+/* Zona drag & drop */
+.dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: 10px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.dropzone svg { color: var(--muted); }
+.dropzone:hover svg, .dropzone.drag-over svg { color: var(--primary); }
+
+.dropzone-text { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dropzone-sub  { font-size: 10px; color: var(--muted); }
+.dropzone-filename {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+
+/* Barra de progreso carga masiva */
+.progress-wrap {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+.progress-bar-bg {
+  height: 16px;
+  background: #f0f2f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 8px;
+  transition: width .25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+}
+.progress-bar-fill span {
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+}
+.progress-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .modal-title {
@@ -457,7 +571,7 @@ tbody tr:last-child td { border-bottom: none; }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -636,11 +750,11 @@ tbody tr:last-child td { border-bottom: none; }
 .rank-table th {
   font-size: 10px;
   font-weight: 600;
-  color: var(--muted);
+  color: #fff;
   text-transform: uppercase;
   letter-spacing: .03em;
-  padding: 4px 5px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 5px 6px;
+  background: var(--primary);
   text-align: left;
 }
 
