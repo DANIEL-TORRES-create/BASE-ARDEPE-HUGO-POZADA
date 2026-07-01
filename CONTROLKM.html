@@ -479,7 +479,7 @@
 /* ═══════════════════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════════════════ */
-var MODO_PROXIMAMENTE = "SI"; /* Cambiar a "SI" para mostrar pantalla próximamente */
+var MODO_PROXIMAMENTE = "NO"; /* Cambiar a "SI" para mostrar pantalla próximamente */
 var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyigAI5rMd_7MmNjeq69QYdeEjYnchKHOPYdIMufG1rcX7u3JOkyl5PE8w59adOJ-4D/exec";
 
 /* ═══════════════════════════════════════════════════════════
@@ -524,9 +524,9 @@ function initialize() {
 }
 
 function mostrarProximamente() {
-  /* Ocultar toda la app y mostrar solo la pantalla próximamente */
-  document.getElementById("km-header").style.display = "none";
-  document.getElementById("km-app").style.display    = "none";
+  /* Mostrar como overlay fijo — no tocar el DOM del addin para que
+     MyGeotab pueda seguir navegando entre módulos sin problema */
+  if (document.getElementById("pantalla-proximamente")) return;
 
   var div = document.createElement("div");
   div.id = "pantalla-proximamente";
