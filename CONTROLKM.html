@@ -479,7 +479,6 @@
 /* ═══════════════════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════════════════ */
-var MODO_PROXIMAMENTE = "SI"; /* Cambiar a "SI" para mostrar pantalla próximamente */
 var URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyigAI5rMd_7MmNjeq69QYdeEjYnchKHOPYdIMufG1rcX7u3JOkyl5PE8w59adOJ-4D/exec";
 
 /* ═══════════════════════════════════════════════════════════
@@ -516,29 +515,7 @@ geotab.addin["prueba_hugo-CONTROLKM"] = function(api, state) {
 };
 
 function initialize() {
-  if (MODO_PROXIMAMENTE === "SI") {
-    mostrarProximamente();
-    return;
-  }
   cargarMeses();
-}
-
-function mostrarProximamente() {
-  /* Mostrar como overlay fijo — no tocar el DOM del addin para que
-     MyGeotab pueda seguir navegando entre módulos sin problema */
-  if (document.getElementById("pantalla-proximamente")) return;
-
-  var div = document.createElement("div");
-  div.id = "pantalla-proximamente";
-  div.innerHTML =
-    '<div class="prox-icono">' +
-      '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-    '</div>' +
-    '<div class="prox-badge">Próximamente</div>' +
-    '<div class="prox-titulo">Control de Abastecimientos,<br>Costo y Kilómetro</div>' +
-    '<div class="prox-sub">Estamos trabajando para ti. Muy pronto disponible.</div>';
-
-  document.body.appendChild(div);
 }
 
 /* ═══════════════════════════════════════════════════════════
