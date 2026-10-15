@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Control de Exceso de RPM - ARDEPE</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <link rel="stylesheet" href="excesopm.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+</head>
+<body>
+
+<div id="excesopm-root">
+
+  <!-- ENCABEZADO -->
+  <div class="excesopm-hdr">
+    <img id="excesopm-logo" class="excesopm-logo" alt="ARDEPE" style="display:none"/>
+    <div class="excesopm-hdr-txt">
+      <div class="excesopm-cliente" id="excesopm-cliente">ARDEPE S.A.C.</div>
+      <div class="excesopm-titulo" id="excesopm-titulo">Reporte de excepciones por exceso de RPM</div>
+      <div class="excesopm-periodo" id="excesopm-periodo"></div>
+    </div>
+    <div class="excesopm-generado" id="excesopm-generado"></div>
+  </div>
+
+  <!-- MENU -->
+  <div class="excesopm-nav" id="excesopm-nav">
+    <button type="button" class="excesopm-nav-btn excesopm-activo" data-tab="resumen">Resumen</button>
+    <button type="button" class="excesopm-nav-btn" data-tab="motor">Top por Tipo de Motor</button>
+    <button type="button" class="excesopm-nav-btn" data-tab="top">Top Unidades</button>
+    <button type="button" class="excesopm-nav-btn" data-tab="detalle">Detalle por Unidad y Conductor</button>
+  </div>
+  <div class="excesopm-guia" id="excesopm-guia"></div>
+
+  <!-- CONSULTA -->
+  <div class="excesopm-barra">
+    <div class="excesopm-campo"><label for="excesopm-desde">Fecha desde</label><input type="date" id="excesopm-desde"/></div>
+    <div class="excesopm-campo"><label for="excesopm-hasta">Fecha hasta (máx. <span id="excesopm-maxdias">7</span> días)</label><input type="date" id="excesopm-hasta"/></div>
+    <button type="button" class="excesopm-btn" id="excesopm-btn-consultar">Consultar</button>
+    <button type="button" class="excesopm-btn excesopm-btn-sec" id="excesopm-btn-exportar" disabled>Exportar XLSX</button>
+  </div>
+  <div class="excesopm-estado" id="excesopm-estado"></div>
+  <div class="excesopm-progreso" id="excesopm-progreso"><div id="excesopm-progreso-barra"></div></div>
+
+  <!-- FILTROS -->
+  <div class="excesopm-barra">
+    <div class="excesopm-campo excesopm-campo-ch"><label for="excesopm-f-motor">Tipo de motor</label><select id="excesopm-f-motor"><option value="">Todos</option></select></div>
+    <div class="excesopm-campo excesopm-campo-ch"><label for="excesopm-f-placa">Placa</label><select id="excesopm-f-placa"><option value="">Todos</option></select></div>
+    <div class="excesopm-campo excesopm-campo-ch"><label for="excesopm-f-conductor">Conductor</label><select id="excesopm-f-conductor"><option value="">Todos</option></select></div>
+    <div class="excesopm-campo excesopm-campo-ch"><label for="excesopm-f-dia">Día</label><select id="excesopm-f-dia"><option value="">Todos</option></select></div>
+  </div>
+  <div class="excesopm-aplicados" id="excesopm-aplicados"></div>
+
+  <div class="excesopm-cargando" id="excesopm-cargando">Consultando la API de Geotab…</div>
+
+  <!-- PANEL RESUMEN -->
+  <div class="excesopm-panel excesopm-activo" id="excesopm-panel-resumen">
+    <div class="excesopm-seccion" id="excesopm-sec-resultados">Resultados del periodo</div>
+    <div class="excesopm-kpis">
+      <div class="excesopm-kpi"><div class="excesopm-kpi-val" id="excesopm-k-total">0</div><div class="excesopm-kpi-lbl">Eventos registrados</div></div>
+      <div class="excesopm-kpi"><div class="excesopm-kpi-val" id="excesopm-k-placas">0</div><div class="excesopm-kpi-lbl">Placas con incidencias</div></div>
+      <div class="excesopm-kpi"><div class="excesopm-kpi-val" id="excesopm-k-motor">—</div><div class="excesopm-kpi-lbl" id="excesopm-k-motor-l">Motor con mayor incidencia</div></div>
+      <div class="excesopm-kpi"><div class="excesopm-kpi-val" id="excesopm-k-rpmmax">—</div><div class="excesopm-kpi-lbl">RPM máxima registrada</div></div>
+      <div class="excesopm-kpi"><div class="excesopm-kpi-val" id="excesopm-k-rpmprom">—</div><div class="excesopm-kpi-lbl">RPM promedio por evento</div></div>
+    </div>
+    <div class="excesopm-fila2">
+      <div class="excesopm-card"><div class="excesopm-card-tit">Eventos por tipo de motor</div><div class="excesopm-canvas-wrap"><canvas id="excesopm-cv-motor"></canvas></div></div>
+      <div class="excesopm-card"><div class="excesopm-card-tit">Placas con más eventos (Top 10)</div><div class="excesopm-canvas-wrap"><canvas id="excesopm-cv-top"></canvas></div></div>
+    </div>
+
+    <div class="excesopm-seccion" id="excesopm-sec-evolucion">Evolución</div>
+    <div class="excesopm-card"><div class="excesopm-card-tit" id="excesopm-evol-tit">Eventos por día</div><div class="excesopm-canvas-wrap"><canvas id="excesopm-cv-evol"></canvas></div></div>
+
+    <div class="excesopm-seccion" id="excesopm-sec-foco">Foco de atención</div>
+    <div class="excesopm-fila-foco">
+      <div>
+        <div class="excesopm-card-tit" style="margin-bottom:6px">Placas con mayor incidencia</div>
+        <div class="excesopm-tabla-wrap">
+          <table class="excesopm-tabla">
+            <thead><tr><th>Placa</th><th>Conductor</th><th>Tipo de motor</th><th class="excesopm-num">Eventos</th><th></th><th class="excesopm-num">RPM máxima</th></tr></thead>
+            <tbody id="excesopm-tb-foco"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="excesopm-card">
+        <div class="excesopm-card-tit">Conclusiones del periodo</div>
+        <ul class="excesopm-concl" id="excesopm-concl"></ul>
+        <div class="excesopm-leyenda-tit">Referencia de motores</div>
+        <div id="excesopm-leyenda"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL TOP POR TIPO DE MOTOR -->
+  <div class="excesopm-panel" id="excesopm-panel-motor">
+    <div class="excesopm-seccion">Resumen por tipo de motor</div>
+    <div class="excesopm-tabla-wrap">
+      <table class="excesopm-tabla">
+        <thead><tr><th>Tipo de motor</th><th class="excesopm-num">Cantidad de eventos</th><th class="excesopm-num">% del total</th><th class="excesopm-num">RPM promedio</th><th class="excesopm-num">RPM máxima</th><th class="excesopm-num">Placas con eventos</th><th>Referencia</th></tr></thead>
+        <tbody id="excesopm-tb-motor"></tbody>
+      </table>
+    </div>
+    <div class="excesopm-fila2">
+      <div class="excesopm-card"><div class="excesopm-card-tit">Eventos por tipo de motor</div><div class="excesopm-canvas-wrap"><canvas id="excesopm-cv-motor2"></canvas></div></div>
+      <div class="excesopm-card"><div class="excesopm-card-tit">RPM promedio y máxima por tipo de motor</div><div class="excesopm-canvas-wrap"><canvas id="excesopm-cv-rpm"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- PANEL TOP UNIDADES -->
+  <div class="excesopm-panel" id="excesopm-panel-top">
+    <div class="excesopm-seccion">Ranking de las 20 placas con más eventos</div>
+    <div class="excesopm-tabla-wrap">
+      <table class="excesopm-tabla">
+        <thead><tr><th>Puesto</th><th>Placa</th><th>Conductor</th><th>Tipo de motor</th><th class="excesopm-num">Cantidad de eventos</th><th></th><th class="excesopm-num">% del total</th><th class="excesopm-num">RPM máxima</th></tr></thead>
+        <tbody id="excesopm-tb-top"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PANEL DETALLE -->
+  <div class="excesopm-panel" id="excesopm-panel-detalle">
+    <div class="excesopm-seccion">Detalle por placa, conductor y día</div>
+    <div class="excesopm-campo excesopm-buscar"><label for="excesopm-buscar">Buscar placa o conductor</label><input type="text" id="excesopm-buscar" placeholder="Escriba para filtrar"/></div>
+    <div class="excesopm-tabla-wrap" style="max-height:600px">
+      <table class="excesopm-tabla">
+        <thead><tr><th>Placa</th><th>Conductor</th><th>Tipo de motor</th><th>Día</th><th class="excesopm-num">Cantidad de eventos</th><th class="excesopm-num">RPM máxima</th><th class="excesopm-num">RPM promedio</th><th class="excesopm-num">Tiempo total</th></tr></thead>
+        <tbody id="excesopm-tb-detalle"></tbody>
+      </table>
+    </div>
+    <div class="excesopm-pie" id="excesopm-pie-detalle"></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ═══════════════════════════════════════════════════════════
+     CONFIG — para ajustar parámetros edita solo aquí.
+     Prefijo único de todo el add-in: excesopm
+  ═══════════════════════════════════════════════════════════ */
+  var EXCESOPM_CFG = {
+    baseUrl:        "https://DANIEL-TORRES-create.github.io/BASE-ARDEPE-HUGO-POZADA/EXCESO-RPM/",
+    logo:           "ardepe-logo.png",
+    cliente:        "ARDEPE S.A.C.",
+    titulo:         "Reporte de excepciones por exceso de RPM",
+    utcOffsetHoras: -5,        /* America/Lima */
+    maxDias:        7,         /* rango máximo de consulta en días */
+    grupoId:        "",        /* opcional: id de grupo de unidades; vacío = sin filtro */
+    umbralRpm:      2000,
+    rpmSinDato:     8191,      /* valores >= a este se consideran "sin dato" del sensor */
+    incluirRpm:     true,      /* calcular RPM por evento con StatusData */
+    diagnosticoRpm: "DiagnosticEngineSpeedId",
+    rpmLote:        20,        /* llamadas por lote (ExecuteMultiCall) */
+    rpmPausaMs:     1500,      /* pausa entre lotes para no superar el límite de la API */
+    sinConductor:   "Sin conductor asignado",
+    motores: [
+      { motor: "ISM", ruleId: "aabEuJxH800emgh5jAM7HgA" },
+      { motor: "ISX", ruleId: "ak71gKDl7EkS1nR7fSA6dpg" },
+      { motor: "S13", ruleId: "axN_DL1MHjU6968Q9FOdzhA" },
+      { motor: "X15", ruleId: "aAgwhTQf1X0S8xT9W6Kh8oA" }
+    ]
+  };
+
+  var EXCESOPM_TXT = {
+    guia: {
+      resumen:  "Guía de lectura: resultados del periodo, evolución de los eventos y placas con mayor incidencia. Use los filtros para enfocar un motor, placa, conductor o día.",
+      motor:    "Guía de lectura: compara los tipos de motor por cantidad de eventos y por RPM. Use los filtros para acotar la información.",
+      top:      "Guía de lectura: ranking de las 20 placas con más eventos, con su conductor y su tipo de motor. Es la base para priorizar la gestión.",
+      detalle:  "Guía de lectura: detalle completo por placa, conductor y día. Use los filtros y el buscador para llegar a un caso específico."
+    }
+  };
+
+  var EXCESOPM = {
+    api: null,
+    dispositivos: null,
+    conductores: null,
+    eventos: [],
+    dias: [],
+    desde: "",
+    hasta: "",
+    generado: null,
+    f: { motor: "", placa: "", conductor: "", dia: "" },
+    tab: "resumen",
+    consultaId: 0,
+    busqueda: ""
+  };
+
+  var C_ROJO = "#c8102e", C_CARBON = "#2b2b2b", C_GRIS = "#8c8c8c", C_GRIS_CL = "#bdbdbd", C_BORDE = "#e3e1dc";
+
+  /* ═══════════════════════════════════════════════════════════
+     UTILIDADES
+  ═══════════════════════════════════════════════════════════ */
+  function $(id) { return document.getElementById(id); }
+
+  function excesopm_esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function excesopm_pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function excesopm_num(n) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  function excesopm_pct(x) { return (Math.round(x * 1000) / 10).toFixed(1) + "%"; }
+
+  function excesopm_lima(d) { return new Date(d.getTime() + EXCESOPM_CFG.utcOffsetHoras * 3600000); }
+  function excesopm_fmtFecha(d) {
+    var l = excesopm_lima(d);
+    return excesopm_pad2(l.getUTCDate()) + "/" + excesopm_pad2(l.getUTCMonth() + 1) + "/" + l.getUTCFullYear();
+  }
+  function excesopm_fmtFechaHora(d) {
+    var l = excesopm_lima(d);
+    return excesopm_fmtFecha(d) + " " + excesopm_pad2(l.getUTCHours()) + ":" + excesopm_pad2(l.getUTCMinutes());
+  }
+  function excesopm_claveDia(d) {
+    var l = excesopm_lima(d);
+    return l.getUTCFullYear() + "-" + excesopm_pad2(l.getUTCMonth() + 1) + "-" + excesopm_pad2(l.getUTCDate());
+  }
+  function excesopm_horaDe(d) { return excesopm_lima(d).getUTCHours(); }
+
+  function excesopm_fmtDur(seg) {
+    seg = Math.round(seg || 0);
+    var h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
+    if (h > 0) return h + "h " + excesopm_pad2(m) + "m";
+    if (m > 0) return m + "m " + excesopm_pad2(s) + "s";
+    return s + "s";
+  }
+
+  function excesopm_inicioDiaIso(s) {
+    var p = s.split("-");
+    return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]) - EXCESOPM_CFG.utcOffsetHoras * 3600000).toISOString();
+  }
+  function excesopm_finDiaIso(s) {
+    var p = s.split("-");
+    return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2] + 1) - EXCESOPM_CFG.utcOffsetHoras * 3600000 - 1000).toISOString();
+  }
+  function excesopm_listaDias(desde, hasta) {
+    var res = [], a = desde.split("-"), b = hasta.split("-");
+    var t = Date.UTC(+a[0], +a[1] - 1, +a[2]), fin = Date.UTC(+b[0], +b[1] - 1, +b[2]);
+    while (t <= fin && res.length < 400) {
+      var d = new Date(t);
+      var clave = d.getUTCFullYear() + "-" + excesopm_pad2(d.getUTCMonth() + 1) + "-" + excesopm_pad2(d.getUTCDate());
+      res.push({
+        clave: clave,
+        etiqueta: excesopm_pad2(d.getUTCDate()) + "/" + excesopm_pad2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear(),
+        corta: excesopm_pad2(d.getUTCDate()) + "/" + excesopm_pad2(d.getUTCMonth() + 1)
+      });
+      t += 86400000;
+    }
+    return res;
+  }
+  function excesopm_hoyLimaClave(delta) {
+    var l = excesopm_lima(new Date(Date.now() + (delta || 0) * 86400000));
+    return l.getUTCFullYear() + "-" + excesopm_pad2(l.getUTCMonth() + 1) + "-" + excesopm_pad2(l.getUTCDate());
+  }
+
+  /* "HH:MM:SS.fffffff" o "d.HH:MM:SS" -> segundos */
+  function excesopm_parseDur(d) {
+    if (!d || typeof d !== "string") return 0;
+    var dias = 0, resto = d;
+    var i = d.indexOf(".");
+    var j = d.indexOf(":");
+    if (i > -1 && j > -1 && i < j) { dias = parseInt(d.substring(0, i), 10) || 0; resto = d.substring(i + 1); }
+    var p = resto.split(":");
+    if (p.length < 3) return 0;
+    return dias * 86400 + (parseInt(p[0], 10) || 0) * 3600 + (parseInt(p[1], 10) || 0) * 60 + (parseFloat(p[2]) || 0);
+  }
+
+  function excesopm_api(metodo, params) {
+    return new Promise(function (resolve, reject) {
+      EXCESOPM.api.call(metodo, params, resolve, reject);
+    });
+  }
+
+  function excesopm_estado(texto) { $("excesopm-estado").textContent = texto || ""; }
+  function excesopm_progreso(pct) {
+    var p = $("excesopm-progreso");
+    if (pct === null) { p.className = "excesopm-progreso"; return; }
+    p.className = "excesopm-progreso excesopm-visible";
+    $("excesopm-progreso-barra").style.width = Math.max(0, Math.min(100, pct)) + "%";
+  }
+  function excesopm_cargando(on) {
+    $("excesopm-cargando").className = "excesopm-cargando" + (on ? " excesopm-visible" : "");
+    $("excesopm-btn-consultar").disabled = on;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     INIT — MyGeotab inyecta api y state
+  ═══════════════════════════════════════════════════════════ */
+  window.geotab = window.geotab || {};
+  window.geotab.addin = window.geotab.addin || {};
+  window.geotab.addin.excesopm = function (api, state) {
+    EXCESOPM.api = api;
+    excesopm_inicializar();
+  };
+
+  function excesopm_inicializar() {
+    var logo = $("excesopm-logo");
+    logo.onload = function () { logo.style.display = "block"; };
+    logo.onerror = function () { logo.style.display = "none"; };
+    logo.src = EXCESOPM_CFG.baseUrl + EXCESOPM_CFG.logo;
+
+    $("excesopm-cliente").textContent = EXCESOPM_CFG.cliente;
+    $("excesopm-titulo").textContent = EXCESOPM_CFG.titulo;
+    $("excesopm-maxdias").textContent = EXCESOPM_CFG.maxDias;
+
+    var ayer = excesopm_hoyLimaClave(-1);
+    $("excesopm-desde").value = ayer;
+    $("excesopm-hasta").value = ayer;
+    $("excesopm-desde").addEventListener("change", excesopm_validarRango);
+    $("excesopm-hasta").addEventListener("change", excesopm_validarRango);
+    $("excesopm-btn-consultar").addEventListener("click", excesopm_consultar);
+    $("excesopm-btn-exportar").addEventListener("click", excesopm_exportar);
+
+    var navs = $("excesopm-nav").getElementsByTagName("button");
+    for (var i = 0; i < navs.length; i++) {
+      navs[i].addEventListener("click", function () { excesopm_cambiarTab(this.getAttribute("data-tab")); });
+    }
+    ["motor", "placa", "conductor", "dia"].forEach(function (k) {
+      $("excesopm-f-" + k).addEventListener("change", function () {
+        EXCESOPM.f[k] = this.value;
+        excesopm_renderActivo();
+      });
+    });
+    $("excesopm-buscar").addEventListener("input", function () {
+      EXCESOPM.busqueda = this.value;
+      excesopm_renderDetalle(excesopm_filtrados());
+    });
+
+    if (window.__excesopmResize) { window.removeEventListener("resize", window.__excesopmResize); }
+    var tmr = null;
+    window.__excesopmResize = function () {
+      clearTimeout(tmr);
+      tmr = setTimeout(function () { if ($("excesopm-root")) excesopm_renderActivo(); }, 150);
+    };
+    window.addEventListener("resize", window.__excesopmResize);
+
+    EXCESOPM.dias = excesopm_listaDias(ayer, ayer);
+    excesopm_poblarMotores();
+    excesopm_cambiarTab("resumen");
+    excesopm_renderActivo();
+  }
+
+  function excesopm_validarRango() {
+    var d = $("excesopm-desde").value, h = $("excesopm-hasta").value;
+    if (!d || !h) return;
+    var td = new Date(d + "T00:00:00Z").getTime(), th = new Date(h + "T00:00:00Z").getTime();
+    var dias = Math.round((th - td) / 86400000) + 1;
+    if (dias < 1) { $("excesopm-hasta").value = d; }
+    else if (dias > EXCESOPM_CFG.maxDias) {
+      var lim = new Date(td + (EXCESOPM_CFG.maxDias - 1) * 86400000);
+      $("excesopm-hasta").value = lim.getUTCFullYear() + "-" + excesopm_pad2(lim.getUTCMonth() + 1) + "-" + excesopm_pad2(lim.getUTCDate());
+      alert("El rango máximo permitido es de " + EXCESOPM_CFG.maxDias + " días.");
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CONSULTA A LA API
+  ═══════════════════════════════════════════════════════════ */
+  function excesopm_cargarMaestros() {
+    var tareas = [];
+    if (!EXCESOPM.dispositivos) {
+      var busq = EXCESOPM_CFG.grupoId ? { groups: [{ id: EXCESOPM_CFG.grupoId }] } : {};
+      tareas.push(excesopm_api("Get", { typeName: "Device", search: busq }).then(function (lista) {
+        var m = {};
+        (lista || []).forEach(function (d) { m[d.id] = d.name || d.licensePlate || d.id; });
+        EXCESOPM.dispositivos = m;
+      }, function () { EXCESOPM.dispositivos = {}; }));
+    }
+    if (!EXCESOPM.conductores) {
+      tareas.push(excesopm_api("Get", { typeName: "User", search: { isDriver: true } }).then(function (lista) {
+        var m = {};
+        (lista || []).forEach(function (u) {
+          m[u.id] = u.name || (((u.firstName || "") + " " + (u.lastName || "")).trim()) || u.id;
+        });
+        EXCESOPM.conductores = m;
+      }, function () { EXCESOPM.conductores = {}; }));
+    }
+    return Promise.all(tareas);
+  }
+
+  function excesopm_consultar() {
+    var desde = $("excesopm-desde").value, hasta = $("excesopm-hasta").value;
+    if (!desde || !hasta) { alert("Seleccione un rango de fechas."); return; }
+    excesopm_validarRango();
+    hasta = $("excesopm-hasta").value;
+
+    var id = ++EXCESOPM.consultaId;
+    excesopm_cargando(true);
+    excesopm_progreso(null);
+    excesopm_estado("Consultando eventos…");
+    $("excesopm-btn-exportar").disabled = true;
+
+    var fromISO = excesopm_inicioDiaIso(desde), toISO = excesopm_finDiaIso(hasta);
+
+    excesopm_cargarMaestros().then(function () {
+      var calls = EXCESOPM_CFG.motores.map(function (m) {
+        return { method: "Get", params: { typeName: "ExceptionEvent", search: { fromDate: fromISO, toDate: toISO, ruleSearch: { id: m.ruleId } } } };
+      });
+      return excesopm_api("ExecuteMultiCall", { calls: calls });
+    }).then(function (resultados) {
+      if (id !== EXCESOPM.consultaId) return;
+      var vistos = {}, eventos = [];
+      var hayGrupo = !!EXCESOPM_CFG.grupoId;
+      var ahora = Date.now();
+      (resultados || []).forEach(function (lista, i) {
+        var motor = EXCESOPM_CFG.motores[i].motor;
+        (lista || []).forEach(function (ev) {
+          if (!ev || vistos[ev.id]) return;
+          var devId = ev.device ? ev.device.id : null;
+          if (hayGrupo && (!devId || !EXCESOPM.dispositivos[devId])) return;
+          vistos[ev.id] = true;
+          var ini = new Date(ev.activeFrom);
+          var fin = ev.activeTo ? new Date(ev.activeTo) : null;
+          if (fin && fin.getTime() > ahora + 86400000) fin = null;     /* evento aún abierto */
+          var dur = fin ? (fin - ini) / 1000 : 0;
+          if (dur < 0 || dur > 86400) { dur = excesopm_parseDur(ev.duration); fin = new Date(ini.getTime() + dur * 1000); }
+          var drvId = ev.driver && ev.driver.id ? ev.driver.id : null;
+          var cond = drvId && EXCESOPM.conductores[drvId] ? EXCESOPM.conductores[drvId] : EXCESOPM_CFG.sinConductor;
+          eventos.push({
+            id: ev.id, motor: motor, deviceId: devId,
+            placa: (devId && EXCESOPM.dispositivos[devId]) || devId || "—",
+            conductor: cond, ini: ini, fin: fin || ini, durSeg: dur, rpm: null
+          });
+        });
+      });
+      eventos.sort(function (a, b) { return a.ini - b.ini; });
+
+      EXCESOPM.eventos = eventos;
+      EXCESOPM.desde = desde; EXCESOPM.hasta = hasta;
+      EXCESOPM.dias = excesopm_listaDias(desde, hasta);
+      EXCESOPM.generado = new Date();
+      EXCESOPM.f = { motor: "", placa: "", conductor: "", dia: "" };
+      EXCESOPM.busqueda = ""; $("excesopm-buscar").value = "";
+      excesopm_poblarFiltros();
+      excesopm_cargando(false);
+      excesopm_estado(eventos.length ? ("Consulta completada: " + excesopm_num(eventos.length) + " eventos.") : "No se encontraron eventos en el periodo seleccionado.");
+      excesopm_renderActivo();
+      $("excesopm-btn-exportar").disabled = eventos.length === 0;
+      if (eventos.length && EXCESOPM_CFG.incluirRpm) excesopm_calcularRpm(id);
+    }).catch(function (err) {
+      if (id !== EXCESOPM.consultaId) return;
+      excesopm_cargando(false);
+      excesopm_estado("");
+      alert("Error consultando eventos: " + ((err && err.message) || err));
+    });
+  }
+
+  /* RPM por evento: máximo de StatusData (velocidad del motor) durante el evento */
+  function excesopm_calcularRpm(id) {
+    var evs = EXCESOPM.eventos, total = evs.length, i = 0, reintentos = 0, lotes = 0;
+    var CH = EXCESOPM_CFG.rpmLote;
+    excesopm_progreso(0);
+    excesopm_estado("Calculando RPM… 0 de " + excesopm_num(total));
+
+    function fin() {
+      excesopm_progreso(null);
+      excesopm_estado("Consulta completada: " + excesopm_num(total) + " eventos.");
+      excesopm_renderActivo();
+    }
+    function paso() {
+      if (id !== EXCESOPM.consultaId) return;
+      if (i >= total) { fin(); return; }
+      var lote = evs.slice(i, i + CH);
+      var calls = lote.map(function (e) {
+        return { method: "Get", params: { typeName: "StatusData", search: {
+          deviceSearch: { id: e.deviceId },
+          diagnosticSearch: { id: EXCESOPM_CFG.diagnosticoRpm },
+          fromDate: new Date(e.ini.getTime() - 5000).toISOString(),
+          toDate: new Date(e.fin.getTime() + 5000).toISOString()
+        } } };
+      });
+      excesopm_api("ExecuteMultiCall", { calls: calls }).then(function (rs) {
+        if (id !== EXCESOPM.consultaId) return;
+        lote.forEach(function (e, k) {
+          var datos = (rs && rs[k]) || [], mx = null;
+          datos.forEach(function (d) {
+            var v = Number(d.data);
+            if (v > 0 && v < EXCESOPM_CFG.rpmSinDato && (mx === null || v > mx)) mx = v;
+          });
+          e.rpm = mx;
+        });
+        i += CH; reintentos = 0; lotes++;
+        excesopm_progreso((Math.min(i, total) / total) * 100);
+        excesopm_estado("Calculando RPM… " + excesopm_num(Math.min(i, total)) + " de " + excesopm_num(total));
+        if (lotes % 5 === 0) excesopm_renderActivo();
+        setTimeout(paso, EXCESOPM_CFG.rpmPausaMs);
+      }, function () {
+        if (id !== EXCESOPM.consultaId) return;
+        reintentos++;
+        if (reintentos <= 3) { setTimeout(paso, 5000); }
+        else { i += CH; reintentos = 0; setTimeout(paso, EXCESOPM_CFG.rpmPausaMs); }
+      });
+    }
+    paso();
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     FILTROS Y AGREGACIONES
+  ═══════════════════════════════════════════════════════════ */
+  function excesopm_poblarMotores() {
+    var s = $("excesopm-f-motor");
+    s.innerHTML = '<option value="">Todos</option>';
+    EXCESOPM_CFG.motores.forEach(function (m) {
+      var o = document.createElement("option"); o.value = m.motor; o.textContent = m.motor; s.appendChild(o);
+    });
+  }
+  function excesopm_llenarSelect(id, items, valor) {
+    var s = $(id);
+    s.innerHTML = '<option value="">Todos</option>';
+    items.forEach(function (it) {
+      var o = document.createElement("option"); o.value = it.v; o.textContent = it.t;
+      if (it.v === valor) o.selected = true;
+      s.appendChild(o);
+    });
+  }
+  function excesopm_poblarFiltros() {
+    var placas = {}, conds = {};
+    EXCESOPM.eventos.forEach(function (e) { placas[e.placa] = 1; conds[e.conductor] = 1; });
+    var lp = Object.keys(placas).sort().map(function (x) { return { v: x, t: x }; });
+    var lc = Object.keys(conds).sort().map(function (x) { return { v: x, t: x }; });
+    var ld = EXCESOPM.dias.map(function (d) { return { v: d.clave, t: d.etiqueta }; });
+    excesopm_poblarMotores();
+    excesopm_llenarSelect("excesopm-f-placa", lp, "");
+    excesopm_llenarSelect("excesopm-f-conductor", lc, "");
+    excesopm_llenarSelect("excesopm-f-dia", ld, "");
+    $("excesopm-f-motor").value = "";
+  }
+
+  function excesopm_filtrados() {
+    var f = EXCESOPM.f;
+    return EXCESOPM.eventos.filter(function (e) {
+      if (f.motor && e.motor !== f.motor) return false;
+      if (f.placa && e.placa !== f.placa) return false;
+      if (f.conductor && e.conductor !== f.conductor) return false;
+      if (f.dia && excesopm_claveDia(e.ini) !== f.dia) return false;
+      return true;
+    });
+  }
+
+  function excesopm_rpmValido(e) {
+    return e.rpm !== null && e.rpm !== undefined && e.rpm > 0 && e.rpm < EXCESOPM_CFG.rpmSinDato;
+  }
+
+  function excesopm_agregar(evs) {
+    var A = { total: evs.length, placas: {}, motores: {}, dias: {}, horas: [], rpmN: 0, rpmSum: 0, rpmMax: null, durTotal: 0 };
+    var h;
+    for (h = 0; h < 24; h++) A.horas.push(0);
+    EXCESOPM_CFG.motores.forEach(function (m) { A.motores[m.motor] = { motor: m.motor, eventos: 0, placas: {}, rpmN: 0, rpmSum: 0, rpmMax: null }; });
+
+    evs.forEach(function (e) {
+      var p = A.placas[e.placa];
+      if (!p) p = A.placas[e.placa] = { placa: e.placa, eventos: 0, motor: e.motor, conds: {}, rpmMax: null, dur: 0 };
+      p.eventos++; p.dur += e.durSeg;
+      p.conds[e.conductor] = (p.conds[e.conductor] || 0) + 1;
+
+      var m = A.motores[e.motor];
+      if (m) { m.eventos++; m.placas[e.placa] = 1; }
+
+      var dk = excesopm_claveDia(e.ini);
+      A.dias[dk] = (A.dias[dk] || 0) + 1;
+      A.horas[excesopm_horaDe(e.ini)]++;
+      A.durTotal += e.durSeg;
+
+      if (excesopm_rpmValido(e)) {
+        A.rpmN++; A.rpmSum += e.rpm;
+        if (A.rpmMax === null || e.rpm > A.rpmMax) A.rpmMax = e.rpm;
+        if (p.rpmMax === null || e.rpm > p.rpmMax) p.rpmMax = e.rpm;
+        if (m) { m.rpmN++; m.rpmSum += e.rpm; if (m.rpmMax === null || e.rpm > m.rpmMax) m.rpmMax = e.rpm; }
+      }
+    });
+
+    A.listaPlacas = Object.keys(A.placas).map(function (k) {
+      var p = A.placas[k], best = null, bc = 0;
+      Object.keys(p.conds).forEach(function (c) { if (p.conds[c] > bc) { bc = p.conds[c]; best = c; } });
+      p.conductor = best || EXCESOPM_CFG.sinConductor;
+      return p;
+    }).sort(function (a, b) { return b.eventos - a.eventos || (a.placa < b.placa ? -1 : 1); });
+
+    A.listaMotores = EXCESOPM_CFG.motores.map(function (mm) {
+      var m = A.motores[mm.motor];
+      m.nPlacas = Object.keys(m.placas).length;
+      m.rpmProm = m.rpmN ? m.rpmSum / m.rpmN : null;
+      return m;
+    });
+    A.nPlacas = A.listaPlacas.length;
+    A.rpmProm = A.rpmN ? A.rpmSum / A.rpmN : null;
+    return A;
+  }
+
+  function excesopm_textoFiltros() {
+    var f = EXCESOPM.f;
+    return [
+      f.motor ? "motor " + f.motor : "todos los motores",
+      f.placa ? "placa " + f.placa : "todas las placas",
+      f.conductor ? "conductor " + f.conductor : "todos los conductores",
+      f.dia ? "día " + excesopm_fmtDiaClave(f.dia) : "todos los días"
+    ].join(" · ");
+  }
+  function excesopm_fmtDiaClave(k) {
+    var p = k.split("-"); return p[2] + "/" + p[1] + "/" + p[0];
+  }
+
+  /* Datos para el gráfico de evolución: por hora (1 día), por día (2 a 31) o por semana (>31) */
+  function excesopm_serieEvolucion(evs, A) {
+    var dias = EXCESOPM.dias;
+    if (dias.length <= 1) {
+      var etq = [], val = [], h;
+      for (h = 0; h < 24; h++) { etq.push(excesopm_pad2(h) + "h"); val.push(A.horas[h]); }
+      return { titulo: "Eventos por hora", etiquetas: etq, valores: val };
+    }
+    if (dias.length <= 31) {
+      return {
+        titulo: "Eventos por día",
+        etiquetas: dias.map(function (d) { return d.corta; }),
+        valores: dias.map(function (d) { return A.dias[d.clave] || 0; })
+      };
+    }
+    var e2 = [], v2 = [], i, j;
+    for (i = 0; i < dias.length; i += 7) {
+      var s = 0, bloque = dias.slice(i, i + 7);
+      for (j = 0; j < bloque.length; j++) s += A.dias[bloque[j].clave] || 0;
+      e2.push(bloque[0].corta + "-" + bloque[bloque.length - 1].corta); v2.push(s);
+    }
+    return { titulo: "Eventos por semana", etiquetas: e2.slice(0, 31), valores: v2.slice(0, 31) };
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     GRÁFICOS (canvas) — se usan en pantalla y en la exportación
+  ═══════════════════════════════════════════════════════════ */
+  function excesopm_prep(cv, w, h, dprFijo) {
+    var dpr = dprFijo || window.devicePixelRatio || 1;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    var c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+    return c;
+  }
+  function excesopm_fuente(c, px, bold) {
+    c.font = (bold ? "700 " : "400 ") + px + 'px "Segoe UI", Arial, sans-serif';
+  }
+  function excesopm_recorte(c, txt, max) {
+    txt = String(txt);
+    if (c.measureText(txt).width <= max) return txt;
+    while (txt.length > 1 && c.measureText(txt + "…").width > max) txt = txt.slice(0, -1);
+    return txt + "…";
+  }
+
+  function excesopm_chColumnas(cv, w, h, etiquetas, valores, opts) {
+    opts = opts || {};
+    var c = excesopm_prep(cv, w, h, opts.dpr);
+    if (opts.fondo) { c.fillStyle = "#ffffff"; c.fillRect(0, 0, w, h); }
+    var n = valores.length;
+    if (!n) return;
+    var m = { t: 22, r: 8, b: 28, l: 8 };
+    var maxV = Math.max.apply(null, valores); if (!maxV) maxV = 1;
+    var paso = (w - m.l - m.r) / n, bw = Math.min(paso * 0.62, 90);
+    var base = h - m.b, altMax = base - m.t;
+    var iMax = valores.indexOf(Math.max.apply(null, valores));
+    var cadaN = paso < 30 ? Math.ceil(30 / paso) : 1;
+    var i;
+    for (i = 0; i < n; i++) {
+      var x = m.l + paso * i + (paso - bw) / 2;
+      var alt = valores[i] > 0 ? Math.max(valores[i] / maxV * altMax, 2) : 1;
+      c.fillStyle = (i === iMax && valores[i] > 0) ? C_ROJO : C_GRIS_CL;
+      c.fillRect(x, base - alt, bw, alt);
+      c.textAlign = "center";
+      var mostrarVal = paso >= 26 || (i === iMax && valores[i] > 0);
+      if (mostrarVal && valores[i] > 0) {
+        excesopm_fuente(c, 11, i === iMax); c.fillStyle = C_CARBON;
+        c.fillText(excesopm_num(valores[i]), x + bw / 2, base - alt - 5);
+      }
+      if (i % cadaN === 0) {
+        excesopm_fuente(c, 11, false); c.fillStyle = C_GRIS;
+        c.fillText(excesopm_recorte(c, etiquetas[i], paso * cadaN - 2), x + bw / 2, base + 16);
+      }
+    }
+    c.strokeStyle = C_BORDE; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(m.l, base + .5); c.lineTo(w - m.r, base + .5); c.stroke();
+  }
+
+  function excesopm_chBarrasH(cv, w, h, etiquetas, valores, opts) {
+    opts = opts || {};
+    var c = excesopm_prep(cv, w, h, opts.dpr);
+    if (opts.fondo) { c.fillStyle = "#ffffff"; c.fillRect(0, 0, w, h); }
+    var n = valores.length;
+    if (!n) return;
+    var mL = 74, mR = 46, mT = 6, mB = 6;
+    var maxV = Math.max.apply(null, valores); if (!maxV) maxV = 1;
+    var fila = (h - mT - mB) / n, bh = Math.min(fila * 0.62, 18);
+    var i;
+    for (i = 0; i < n; i++) {
+      var y = mT + fila * i + (fila - bh) / 2;
+      var ancho = Math.max(valores[i] / maxV * (w - mL - mR), valores[i] > 0 ? 2 : 0);
+      excesopm_fuente(c, 11, false); c.fillStyle = C_GRIS; c.textAlign = "right";
+      c.fillText(excesopm_recorte(c, etiquetas[i], mL - 8), mL - 8, y + bh / 2 + 4);
+      c.fillStyle = C_ROJO; c.fillRect(mL, y, ancho, bh);
+      excesopm_fuente(c, 11, true); c.fillStyle = C_CARBON; c.textAlign = "left";
+      c.fillText(excesopm_num(valores[i]), mL + ancho + 6, y + bh / 2 + 4);
+    }
+  }
+
+  function excesopm_chAgrupadas(cv, w, h, etiquetas, serieA, serieB, nombres, opts) {
+    opts = opts || {};
+    var c = excesopm_prep(cv, w, h, opts.dpr);
+    if (opts.fondo) { c.fillStyle = "#ffffff"; c.fillRect(0, 0, w, h); }
+    var n = etiquetas.length;
+    if (!n) return;
+    var m = { t: 30, r: 8, b: 28, l: 8 };
+    var todos = serieA.concat(serieB).filter(function (v) { return v !== null && v !== undefined; });
+    var maxV = todos.length ? Math.max.apply(null, todos) : 1; if (!maxV) maxV = 1;
+    var paso = (w - m.l - m.r) / n, bw = Math.min(paso * 0.3, 46), base = h - m.b, altMax = base - m.t, i;
+    for (i = 0; i < n; i++) {
+      var x0 = m.l + paso * i + paso / 2;
+      [[serieA[i], C_GRIS_CL, -bw], [serieB[i], C_ROJO, 0]].forEach(function (s) {
+        var v = s[0]; if (v === null || v === undefined) return;
+        var alt = Math.max(v / maxV * altMax, 2);
+        c.fillStyle = s[1]; c.fillRect(x0 + s[2], base - alt, bw, alt);
+        excesopm_fuente(c, 10, false); c.fillStyle = C_CARBON; c.textAlign = "center";
+        c.fillText(excesopm_num(v), x0 + s[2] + bw / 2, base - alt - 4);
+      });
+      excesopm_fuente(c, 11, false); c.fillStyle = C_GRIS; c.textAlign = "center";
+      c.fillText(etiquetas[i], x0, base + 16);
+    }
+    c.strokeStyle = C_BORDE; c.beginPath(); c.moveTo(m.l, base + .5); c.lineTo(w - m.r, base + .5); c.stroke();
+    excesopm_fuente(c, 11, false); c.textAlign = "left";
+    c.fillStyle = C_GRIS_CL; c.fillRect(w - 190, 8, 10, 10); c.fillStyle = C_CARBON; c.fillText(nombres[0], w - 175, 17);
+    c.fillStyle = C_ROJO; c.fillRect(w - 100, 8, 10, 10); c.fillStyle = C_CARBON; c.fillText(nombres[1], w - 85, 17);
+  }
+
+  function excesopm_anchoDe(cv, min) {
+    var p = cv.parentNode, w = p ? p.clientWidth : 0;
+    return w > 40 ? w : (min || 480);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════════════════════ */
+  function excesopm_cambiarTab(tab) {
+    EXCESOPM.tab = tab;
+    var navs = $("excesopm-nav").getElementsByTagName("button");
+    for (var i = 0; i < navs.length; i++) {
+      navs[i].className = "excesopm-nav-btn" + (navs[i].getAttribute("data-tab") === tab ? " excesopm-activo" : "");
+    }
+    ["resumen", "motor", "top", "detalle"].forEach(function (t) {
+      $("excesopm-panel-" + t).className = "excesopm-panel" + (t === tab ? " excesopm-activo" : "");
+    });
+    $("excesopm-guia").textContent = EXCESOPM_TXT.guia[tab];
+    excesopm_renderActivo();
+  }
+
+  function excesopm_renderActivo() {
+    var evs = excesopm_filtrados();
+    $("excesopm-aplicados").innerHTML = "<b>Filtros aplicados:</b> " + excesopm_esc(excesopm_textoFiltros());
+    $("excesopm-periodo").textContent = EXCESOPM.desde
+      ? "Del " + excesopm_fmtDiaClave(EXCESOPM.desde) + " al " + excesopm_fmtDiaClave(EXCESOPM.hasta)
+      : "Seleccione un rango y presione Consultar";
+    $("excesopm-generado").textContent = EXCESOPM.generado ? "Generado el " + excesopm_fmtFechaHora(EXCESOPM.generado) : "";
+    if (EXCESOPM.tab === "resumen") excesopm_renderResumen(evs);
+    else if (EXCESOPM.tab === "motor") excesopm_renderMotor(evs);
+    else if (EXCESOPM.tab === "top") excesopm_renderTop(evs);
+    else excesopm_renderDetalle(evs);
+  }
+
+  function excesopm_vacioFila(cols) {
+    return '<tr><td colspan="' + cols + '" class="excesopm-vacio">Sin eventos con los filtros aplicados.</td></tr>';
+  }
+
+  function excesopm_frasesConclusion(A) {
+    var fr = [];
+    if (!A.total) return ["Sin eventos con los filtros aplicados."];
+    var top = A.listaMotores.slice().sort(function (a, b) { return b.eventos - a.eventos; })[0];
+    fr.push("El motor " + top.motor + " concentra el " + excesopm_pct(top.eventos / A.total) + " de los eventos (" + excesopm_num(top.eventos) + " de " + excesopm_num(A.total) + ").");
+    var s10 = 0; A.listaPlacas.slice(0, 10).forEach(function (p) { s10 += p.eventos; });
+    fr.push("Las " + Math.min(10, A.nPlacas) + " placas con más eventos concentran el " + excesopm_pct(s10 / A.total) + " del total.");
+    if (EXCESOPM.dias.length <= 1) {
+      var hm = 0, k; for (k = 1; k < 24; k++) if (A.horas[k] > A.horas[hm]) hm = k;
+      fr.push("La hora con más eventos fue a las " + excesopm_pad2(hm) + ":00, con " + excesopm_num(A.horas[hm]) + " eventos.");
+    } else {
+      var dm = null; EXCESOPM.dias.forEach(function (d) { if (dm === null || (A.dias[d.clave] || 0) > (A.dias[dm.clave] || 0)) dm = d; });
+      fr.push("El día con más eventos fue el " + dm.corta + ", con " + excesopm_num(A.dias[dm.clave] || 0) + " eventos.");
+    }
+    return fr;
+  }
+
+  function excesopm_renderResumen(evs) {
+    var A = excesopm_agregar(evs);
+    var topM = A.total ? A.listaMotores.slice().sort(function (a, b) { return b.eventos - a.eventos; })[0] : null;
+    $("excesopm-k-total").textContent = excesopm_num(A.total);
+    $("excesopm-k-placas").textContent = excesopm_num(A.nPlacas);
+    $("excesopm-k-motor").textContent = topM ? topM.motor : "—";
+    $("excesopm-k-motor-l").textContent = topM ? "Motor con mayor incidencia · " + excesopm_pct(topM.eventos / A.total) + " del total" : "Motor con mayor incidencia";
+    $("excesopm-k-rpmmax").textContent = A.rpmMax !== null ? excesopm_num(A.rpmMax) : "—";
+    $("excesopm-k-rpmprom").textContent = A.rpmProm !== null ? excesopm_num(A.rpmProm) : "—";
+
+    var cv1 = $("excesopm-cv-motor"), cv2 = $("excesopm-cv-top"), cv3 = $("excesopm-cv-evol");
+    excesopm_chColumnas(cv1, excesopm_anchoDe(cv1), 230, A.listaMotores.map(function (m) { return m.motor; }), A.listaMotores.map(function (m) { return m.eventos; }));
+    var top10 = A.listaPlacas.slice(0, 10);
+    excesopm_chBarrasH(cv2, excesopm_anchoDe(cv2), Math.max(230, top10.length * 24 + 12), top10.map(function (p) { return p.placa; }), top10.map(function (p) { return p.eventos; }));
+    var se = excesopm_serieEvolucion(evs, A);
+    $("excesopm-evol-tit").textContent = se.titulo;
+    excesopm_chColumnas(cv3, excesopm_anchoDe(cv3, 900), 240, se.etiquetas, se.valores);
+
+    var maxE = top10.length ? top10[0].eventos : 1, html = "";
+    top10.forEach(function (p) {
+      html += "<tr><td class=\"excesopm-fuerte\">" + excesopm_esc(p.placa) + "</td><td>" + excesopm_esc(p.conductor) + "</td><td>" + excesopm_esc(p.motor) + "</td>" +
+        "<td class=\"excesopm-num excesopm-fuerte\">" + excesopm_num(p.eventos) + "</td>" +
+        "<td style=\"width:90px\"><span class=\"excesopm-barra-ev\" style=\"width:" + Math.round(p.eventos / maxE * 80) + "px\"></span></td>" +
+        "<td class=\"excesopm-num\">" + (p.rpmMax !== null ? excesopm_num(p.rpmMax) : "—") + "</td></tr>";
+    });
+    $("excesopm-tb-foco").innerHTML = html || excesopm_vacioFila(6);
+
+    $("excesopm-concl").innerHTML = excesopm_frasesConclusion(A).map(function (t) { return "<li>" + excesopm_esc(t) + "</li>"; }).join("");
+    $("excesopm-leyenda").innerHTML = EXCESOPM_CFG.motores.map(function (m) {
+      return "<div class=\"excesopm-leyenda-it\"><b>" + m.motor + "</b>Exceso de RPM: opera por encima de " + excesopm_num(EXCESOPM_CFG.umbralRpm) + " RPM</div>";
+    }).join("");
+  }
+
+  function excesopm_renderMotor(evs) {
+    var A = excesopm_agregar(evs), html = "";
+    A.listaMotores.forEach(function (m) {
+      html += "<tr><td class=\"excesopm-fuerte\">" + m.motor + "</td><td class=\"excesopm-num\">" + excesopm_num(m.eventos) + "</td>" +
+        "<td class=\"excesopm-num\">" + (A.total ? excesopm_pct(m.eventos / A.total) : "—") + "</td>" +
+        "<td class=\"excesopm-num\">" + (m.rpmProm !== null ? excesopm_num(m.rpmProm) : "—") + "</td>" +
+        "<td class=\"excesopm-num\">" + (m.rpmMax !== null ? excesopm_num(m.rpmMax) : "—") + "</td>" +
+        "<td class=\"excesopm-num\">" + excesopm_num(m.nPlacas) + "</td>" +
+        "<td>Exceso de RPM: opera por encima de " + excesopm_num(EXCESOPM_CFG.umbralRpm) + " RPM</td></tr>";
+    });
+    html += "<tr class=\"excesopm-total\"><td>Total</td><td class=\"excesopm-num\">" + excesopm_num(A.total) + "</td><td class=\"excesopm-num\">" + (A.total ? "100.0%" : "—") + "</td>" +
+      "<td class=\"excesopm-num\">" + (A.rpmProm !== null ? excesopm_num(A.rpmProm) : "—") + "</td><td class=\"excesopm-num\">" + (A.rpmMax !== null ? excesopm_num(A.rpmMax) : "—") + "</td><td class=\"excesopm-num\">" + excesopm_num(A.nPlacas) + "</td><td></td></tr>";
+    $("excesopm-tb-motor").innerHTML = html;
+    var cv1 = $("excesopm-cv-motor2"), cv2 = $("excesopm-cv-rpm");
+    var etq = A.listaMotores.map(function (m) { return m.motor; });
+    excesopm_chColumnas(cv1, excesopm_anchoDe(cv1), 240, etq, A.listaMotores.map(function (m) { return m.eventos; }));
+    excesopm_chAgrupadas(cv2, excesopm_anchoDe(cv2), 240, etq,
+      A.listaMotores.map(function (m) { return m.rpmProm; }), A.listaMotores.map(function (m) { return m.rpmMax; }), ["Promedio", "Máxima"]);
+  }
+
+  function excesopm_renderTop(evs) {
+    var A = excesopm_agregar(evs), html = "", lista = A.listaPlacas.slice(0, 20);
+    var maxE = lista.length ? lista[0].eventos : 1;
+    lista.forEach(function (p, i) {
+      html += "<tr><td>" + (i + 1) + "</td><td class=\"excesopm-fuerte\">" + excesopm_esc(p.placa) + "</td><td>" + excesopm_esc(p.conductor) + "</td><td>" + excesopm_esc(p.motor) + "</td>" +
+        "<td class=\"excesopm-num excesopm-fuerte\">" + excesopm_num(p.eventos) + "</td>" +
+        "<td style=\"width:140px\"><span class=\"excesopm-barra-ev\" style=\"width:" + Math.round(p.eventos / maxE * 120) + "px\"></span></td>" +
+        "<td class=\"excesopm-num\">" + excesopm_pct(p.eventos / A.total) + "</td>" +
+        "<td class=\"excesopm-num\">" + (p.rpmMax !== null ? excesopm_num(p.rpmMax) : "—") + "</td></tr>";
+    });
+    $("excesopm-tb-top").innerHTML = html || excesopm_vacioFila(8);
+  }
+
+  function excesopm_filasDetalle(evs) {
+    var g = {};
+    evs.forEach(function (e) {
+      var dk = excesopm_claveDia(e.ini), k = e.placa + "|" + e.conductor + "|" + dk;
+      var r = g[k];
+      if (!r) r = g[k] = { placa: e.placa, conductor: e.conductor, motor: e.motor, dia: dk, eventos: 0, rpmN: 0, rpmSum: 0, rpmMax: null, dur: 0 };
+      r.eventos++; r.dur += e.durSeg;
+      if (excesopm_rpmValido(e)) { r.rpmN++; r.rpmSum += e.rpm; if (r.rpmMax === null || e.rpm > r.rpmMax) r.rpmMax = e.rpm; }
+    });
+    return Object.keys(g).map(function (k) { var r = g[k]; r.rpmProm = r.rpmN ? r.rpmSum / r.rpmN : null; return r; })
+      .sort(function (a, b) { return b.eventos - a.eventos || (a.placa < b.placa ? -1 : a.placa > b.placa ? 1 : (a.dia < b.dia ? -1 : 1)); });
+  }
+
+  function excesopm_renderDetalle(evs) {
+    var filas = excesopm_filasDetalle(evs), q = (EXCESOPM.busqueda || "").toLowerCase();
+    if (q) filas = filas.filter(function (r) { return (r.placa + " " + r.conductor).toLowerCase().indexOf(q) > -1; });
+    var html = "", max = 1500;
+    filas.slice(0, max).forEach(function (r) {
+      html += "<tr><td class=\"excesopm-fuerte\">" + excesopm_esc(r.placa) + "</td><td>" + excesopm_esc(r.conductor) + "</td><td>" + excesopm_esc(r.motor) + "</td><td>" + excesopm_fmtDiaClave(r.dia) + "</td>" +
+        "<td class=\"excesopm-num excesopm-fuerte\">" + excesopm_num(r.eventos) + "</td><td class=\"excesopm-num\">" + (r.rpmMax !== null ? excesopm_num(r.rpmMax) : "—") + "</td>" +
+        "<td class=\"excesopm-num\">" + (r.rpmProm !== null ? excesopm_num(r.rpmProm) : "—") + "</td><td class=\"excesopm-num\">" + excesopm_fmtDur(r.dur) + "</td></tr>";
+    });
+    $("excesopm-tb-detalle").innerHTML = html || excesopm_vacioFila(8);
+    $("excesopm-pie-detalle").textContent = filas.length > max
+      ? "Mostrando " + excesopm_num(max) + " de " + excesopm_num(filas.length) + " filas. Use los filtros o el buscador para acotar; la exportación incluye todas."
+      : (filas.length ? excesopm_num(filas.length) + " filas." : "");
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     EXPORTAR XLSX (ExcelJS) — mismas hojas y colores que el reporte en Excel
+  ═══════════════════════════════════════════════════════════ */
+  var XL = { rojo: "FFC8102E", carbon: "FF2B2B2B", gris: "FF8C8C8C", fondo: "FFF3F2EF", borde: "FFE3E1DC", blanco: "FFFFFFFF" };
+  function xlFill(argb) { return { type: "pattern", pattern: "solid", fgColor: { argb: argb } }; }
+  function xlFont(sz, bold, argb, italic) { return { name: "Calibri", size: sz, bold: !!bold, italic: !!italic, color: { argb: argb || XL.carbon } }; }
+  var XL_FINO = { style: "thin", color: { argb: XL.borde } };
+  var XL_RAYA = { style: "hair", color: { argb: XL.borde } };
+
+  function xlBase(ws, anchos) {
+    ws.views = [{ showGridLines: false }];
+    var i;
+    for (i = 1; i <= 24; i++) {
+      var col = ws.getColumn(i);
+      col.width = anchos[i - 1] || 14;
+      col.style = { fill: xlFill(XL.fondo), font: xlFont(10, false) };
+    }
+  }
+
+  function xlCaja(ws, r1, c1, r2, c2, acentoRojo) {
+    var r, c;
+    for (r = r1; r <= r2; r++) {
+      for (c = c1; c <= c2; c++) {
+        var cell = ws.getCell(r, c);
+        cell.fill = xlFill(XL.blanco);
+        var b = {};
+        if (r === r1) b.top = XL_FINO;
+        if (r === r2) b.bottom = XL_FINO;
+        if (c === c1) b.left = acentoRojo ? { style: "thick", color: { argb: XL.rojo } } : XL_FINO;
+        if (c === c2) b.right = XL_FINO;
+        cell.border = b;
+      }
+    }
+  }
+
+  function xlTarjeta(ws, r, c1, c2, valor, etiqueta) {
+    ws.mergeCells(r, c1, r, c2); ws.mergeCells(r + 1, c1, r + 1, c2);
+    xlCaja(ws, r, c1, r + 1, c2, true);
+    var v = ws.getCell(r, c1); v.value = valor;
+    v.font = xlFont(22, true); v.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    var l = ws.getCell(r + 1, c1); l.value = etiqueta;
+    l.font = xlFont(9, false, XL.gris); l.alignment = { horizontal: "left", vertical: "top", wrapText: true, indent: 1 };
+  }
+
+  function xlSeccion(ws, r, texto) {
+    var c = ws.getCell(r, 2); c.value = texto; c.font = xlFont(13, true);
+    ws.getRow(r).height = 22;
+  }
+
+  /* columnas: [{t, c1, c2, fmt, al, fuerte}] ; filas: arrays de valores en el mismo orden */
+  function xlTabla(ws, r0, columnas, filas, opts) {
+    opts = opts || {};
+    var r = r0;
+    columnas.forEach(function (col) {
+      if (col.c2 > col.c1) ws.mergeCells(r, col.c1, r, col.c2);
+      var cell = ws.getCell(r, col.c1);
+      cell.value = col.t; cell.font = xlFont(9, true, XL.gris);
+      cell.alignment = { horizontal: col.al || "left", vertical: "middle", wrapText: true };
+      var c;
+      for (c = col.c1; c <= col.c2; c++) {
+        ws.getCell(r, c).fill = xlFill(XL.blanco);
+        ws.getCell(r, c).border = { bottom: { style: "medium", color: { argb: XL.carbon } } };
+      }
+    });
+    ws.getRow(r).height = 28;
+    filas.forEach(function (fila, i) {
+      r++;
+      var esTotal = opts.total && i === filas.length - 1;
+      columnas.forEach(function (col, k) {
+        if (col.c2 > col.c1) ws.mergeCells(r, col.c1, r, col.c2);
+        var cell = ws.getCell(r, col.c1);
+        cell.value = fila[k];
+        cell.font = xlFont(10, esTotal || col.fuerte);
+        cell.alignment = { horizontal: col.al || "left", vertical: "middle" };
+        if (col.fmt) cell.numFmt = col.fmt;
+        var c;
+        for (c = col.c1; c <= col.c2; c++) {
+          ws.getCell(r, c).fill = xlFill(XL.blanco);
+          ws.getCell(r, c).border = esTotal ? { top: { style: "medium", color: { argb: XL.carbon } } } : { bottom: XL_RAYA };
+        }
+      });
+      ws.getRow(r).height = 19;
+    });
+    return r;
+  }
+
+  function xlBarraDatos(ws, ref) {
+    try {
+      ws.addConditionalFormatting({
+        ref: ref,
+        rules: [{ type: "dataBar", priority: 1, gradient: false, cfvo: [{ type: "num", value: 0 }, { type: "max" }], color: { argb: XL.rojo } }]
+      });
+    } catch (e) { /* si la versión de ExcelJS no soporta barras, se omite */ }
+  }
+
+  function xlImagenCanvas(wb, ws, cv, col, row, w, h) {
+    var id = wb.addImage({ base64: cv.toDataURL("image/png").split(",")[1], extension: "png" });
+    ws.addImage(id, { tl: { col: col, row: row }, ext: { width: w, height: h }, editAs: "oneCell" });
+  }
+
+  function xlEncabezado(wb, ws, logo, titulo, activa, spansNav, ultCol) {
+    ws.getRow(1).height = 8;
+    ws.getRow(2).height = 20; ws.getRow(3).height = 26; ws.getRow(4).height = 20; ws.getRow(5).height = 8;
+    if (logo) {
+      var h = 52, w = Math.round(h * logo.w / logo.h);
+      if (w > 175) { w = 175; h = Math.round(w * logo.h / logo.w); }
+      var id = wb.addImage({ base64: logo.base64, extension: "png" });
+      ws.addImage(id, { tl: { col: 1, row: 1 }, ext: { width: w, height: h }, editAs: "oneCell" });
+    }
+    var cCli = ws.getCell(2, 5); cCli.value = EXCESOPM_CFG.cliente; cCli.font = xlFont(9, true, XL.gris);
+    var cTit = ws.getCell(3, 5); cTit.value = titulo; cTit.font = xlFont(18, false);
+    var cPer = ws.getCell(4, 5);
+    cPer.value = "Del " + excesopm_fmtDiaClave(EXCESOPM.desde) + " al " + excesopm_fmtDiaClave(EXCESOPM.hasta);
+    cPer.font = xlFont(10, false, XL.gris);
+    var cGen = ws.getCell(3, ultCol); cGen.value = "Generado el " + excesopm_fmtFechaHora(EXCESOPM.generado);
+    cGen.font = xlFont(9, false, XL.gris); cGen.alignment = { horizontal: "right" };
+    var c;
+    ws.getRow(6).height = 4;
+    for (c = 2; c <= ultCol; c++) ws.getCell(6, c).fill = xlFill(XL.rojo);
+
+    var nombres = [["Resumen", "Resumen"], ["Top por Tipo de Motor", "Top por Tipo de Motor"], ["Top Unidades", "Top Unidades"], ["Detalle por Unidad y Conductor", "Detalle por Unidad y Conductor"]];
+    ws.getRow(7).height = 22;
+    nombres.forEach(function (n, i) {
+      var sp = spansNav[i];
+      if (sp[1] > sp[0]) ws.mergeCells(7, sp[0], 7, sp[1]);
+      var cell = ws.getCell(7, sp[0]);
+      cell.value = { text: n[0], hyperlink: "#'" + n[1] + "'!A1" };
+      var act = n[0] === activa;
+      cell.font = { name: "Calibri", size: 10, bold: act, underline: false, color: { argb: act ? XL.rojo : XL.carbon } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      var k;
+      for (k = sp[0]; k <= sp[1]; k++) {
+        ws.getCell(7, k).fill = xlFill(XL.blanco);
+        ws.getCell(7, k).border = { top: act ? { style: "thin", color: { argb: XL.rojo } } : XL_FINO, bottom: act ? { style: "thin", color: { argb: XL.rojo } } : XL_FINO, left: act ? { style: "thin", color: { argb: XL.rojo } } : XL_FINO, right: act ? { style: "thin", color: { argb: XL.rojo } } : XL_FINO };
+      }
+    });
+    ws.getRow(8).height = 8;
+    var cF = ws.getCell(9, 2); cF.value = "Filtros aplicados: " + excesopm_textoFiltros(); cF.font = xlFont(9, false, XL.carbon);
+    ws.getRow(10).height = 8;
+  }
+
+  var XL_NAV10 = [[2, 3], [4, 5], [6, 7], [8, 10]];
+
+  function xlHojaResumen(wb, A, evs, logo) {
+    var ws = wb.addWorksheet("Resumen", { properties: { tabColor: { argb: XL.rojo } } });
+    xlBase(ws, [2, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 2]);
+    xlEncabezado(wb, ws, logo, EXCESOPM_CFG.titulo, "Resumen", XL_NAV10, 11);
+    ws.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+
+    var topM = A.total ? A.listaMotores.slice().sort(function (a, b) { return b.eventos - a.eventos; })[0] : null;
+    xlSeccion(ws, 11, "Resultados del periodo");
+    ws.getRow(12).height = 36; ws.getRow(13).height = 28;
+    xlTarjeta(ws, 12, 2, 3, A.total, "Eventos registrados");
+    xlTarjeta(ws, 12, 4, 5, A.nPlacas, "Placas con incidencias");
+    xlTarjeta(ws, 12, 6, 7, topM ? topM.motor : "—", topM ? "Motor con mayor incidencia · " + excesopm_pct(topM.eventos / A.total) + " del total" : "Motor con mayor incidencia");
+    xlTarjeta(ws, 12, 8, 9, A.rpmMax !== null ? Math.round(A.rpmMax) : "—", "RPM máxima registrada");
+    xlTarjeta(ws, 12, 10, 11, A.rpmProm !== null ? Math.round(A.rpmProm) : "—", "RPM promedio por evento");
+    [2, 4, 6, 8, 10].forEach(function (c) { ws.getCell(12, c).numFmt = "#,##0"; });
+
+    var t1 = ws.getCell(15, 2); t1.value = "Eventos por tipo de motor"; t1.font = xlFont(11, true);
+    var t2 = ws.getCell(15, 7); t2.value = "Placas con más eventos (Top 10)"; t2.font = xlFont(11, true);
+    xlCaja(ws, 15, 2, 31, 6); xlCaja(ws, 15, 7, 31, 11);
+    var cv = document.createElement("canvas");
+    excesopm_chColumnas(cv, 480, 290, A.listaMotores.map(function (m) { return m.motor; }), A.listaMotores.map(function (m) { return m.eventos; }), { dpr: 2, fondo: true });
+    xlImagenCanvas(wb, ws, cv, 1, 15, 480, 290);
+    var top10 = A.listaPlacas.slice(0, 10), cv2 = document.createElement("canvas");
+    excesopm_chBarrasH(cv2, 480, 290, top10.map(function (p) { return p.placa; }), top10.map(function (p) { return p.eventos; }), { dpr: 2, fondo: true });
+    xlImagenCanvas(wb, ws, cv2, 6, 15, 480, 290);
+
+    var se = excesopm_serieEvolucion(evs, A);
+    xlSeccion(ws, 33, "Evolución");
+    var t3 = ws.getCell(34, 2); t3.value = se.titulo; t3.font = xlFont(11, true);
+    xlCaja(ws, 34, 2, 49, 11);
+    var cv3 = document.createElement("canvas");
+    excesopm_chColumnas(cv3, 990, 270, se.etiquetas, se.valores, { dpr: 2, fondo: true });
+    xlImagenCanvas(wb, ws, cv3, 1, 34, 990, 270);
+
+    xlSeccion(ws, 51, "Foco de atención");
+    var filas = top10.map(function (p) {
+      return [p.placa, p.conductor, p.motor, p.eventos, A.total ? p.eventos / A.total : 0, p.rpmMax !== null ? Math.round(p.rpmMax) : "—", p.dur / 86400];
+    });
+    var last = xlTabla(ws, 52, [
+      { t: "Placa", c1: 2, c2: 2, fuerte: true }, { t: "Conductor", c1: 3, c2: 5 }, { t: "Tipo de motor", c1: 6, c2: 6 },
+      { t: "Cantidad de eventos", c1: 7, c2: 8, fmt: "#,##0", al: "right", fuerte: true }, { t: "% del total", c1: 9, c2: 9, fmt: "0.0%", al: "right" },
+      { t: "RPM máxima", c1: 10, c2: 10, fmt: "#,##0", al: "right" }, { t: "Tiempo total", c1: 11, c2: 11, fmt: "[h]:mm:ss", al: "right" }
+    ], filas);
+    xlBarraDatos(ws, "G53:G" + last);
+
+    var rC = last + 2;
+    xlSeccion(ws, rC, "Conclusiones del periodo");
+    excesopm_frasesConclusion(A).forEach(function (t, i) {
+      var r = rC + 1 + i;
+      ws.mergeCells(r, 2, r, 11);
+      var c = ws.getCell(r, 2); c.value = t; c.font = xlFont(10, false); c.alignment = { vertical: "middle", indent: 1 };
+      var k;
+      for (k = 2; k <= 11; k++) ws.getCell(r, k).fill = xlFill(XL.blanco);
+      ws.getCell(r, 2).border = { left: { style: "thick", color: { argb: XL.rojo } } };
+      ws.getRow(r).height = 20;
+    });
+    var rL = rC + 5;
+    xlSeccion(ws, rL, "Referencia de motores");
+    EXCESOPM_CFG.motores.forEach(function (m, i) {
+      var c = ws.getCell(rL + 1 + i, 2);
+      c.value = m.motor + "   Exceso de RPM: opera por encima de " + excesopm_num(EXCESOPM_CFG.umbralRpm) + " RPM";
+      c.font = xlFont(9, false, XL.gris);
+    });
+    ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: .4, right: .4, top: .5, bottom: .5, header: .2, footer: .2 } };
+    ws.headerFooter.oddFooter = "&L" + EXCESOPM_CFG.cliente + "&RPágina &P";
+  }
+
+  function xlHojaMotor(wb, A, logo) {
+    var ws = wb.addWorksheet("Top por Tipo de Motor", { properties: { tabColor: { argb: "FF8C8C8C" } } });
+    xlBase(ws, [2, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 2]);
+    xlEncabezado(wb, ws, logo, "Top por tipo de motor", "Top por Tipo de Motor", XL_NAV10, 11);
+    ws.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+    xlSeccion(ws, 11, "Resumen por tipo de motor");
+    var filas = A.listaMotores.map(function (m) {
+      return [m.motor, m.eventos, A.total ? m.eventos / A.total : 0, m.rpmProm !== null ? Math.round(m.rpmProm) : "—", m.rpmMax !== null ? Math.round(m.rpmMax) : "—", m.nPlacas, "Exceso de RPM: opera por encima de " + excesopm_num(EXCESOPM_CFG.umbralRpm) + " RPM"];
+    });
+    filas.push(["Total", A.total, A.total ? 1 : 0, A.rpmProm !== null ? Math.round(A.rpmProm) : "—", A.rpmMax !== null ? Math.round(A.rpmMax) : "—", A.nPlacas, ""]);
+    var last = xlTabla(ws, 12, [
+      { t: "Tipo de motor", c1: 2, c2: 2, fuerte: true }, { t: "Cantidad de eventos", c1: 3, c2: 3, fmt: "#,##0", al: "right" },
+      { t: "% del total", c1: 4, c2: 4, fmt: "0.0%", al: "right" }, { t: "RPM promedio", c1: 5, c2: 5, fmt: "#,##0", al: "right" },
+      { t: "RPM máxima", c1: 6, c2: 6, fmt: "#,##0", al: "right" }, { t: "Placas con eventos", c1: 7, c2: 7, fmt: "#,##0", al: "right" },
+      { t: "Referencia", c1: 8, c2: 11 }
+    ], filas, { total: true });
+    xlBarraDatos(ws, "C13:C" + (last - 1));
+
+    var r0 = last + 2;
+    var t1 = ws.getCell(r0, 2); t1.value = "Eventos por tipo de motor"; t1.font = xlFont(11, true);
+    var t2 = ws.getCell(r0, 7); t2.value = "RPM promedio y máxima por tipo de motor"; t2.font = xlFont(11, true);
+    xlCaja(ws, r0, 2, r0 + 16, 6); xlCaja(ws, r0, 7, r0 + 16, 11);
+    var etq = A.listaMotores.map(function (m) { return m.motor; });
+    var cv = document.createElement("canvas");
+    excesopm_chColumnas(cv, 480, 300, etq, A.listaMotores.map(function (m) { return m.eventos; }), { dpr: 2, fondo: true });
+    xlImagenCanvas(wb, ws, cv, 1, r0, 480, 300);
+    var cv2 = document.createElement("canvas");
+    excesopm_chAgrupadas(cv2, 480, 300, etq, A.listaMotores.map(function (m) { return m.rpmProm; }), A.listaMotores.map(function (m) { return m.rpmMax; }), ["Promedio", "Máxima"], { dpr: 2, fondo: true });
+    xlImagenCanvas(wb, ws, cv2, 6, r0, 480, 300);
+    ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    ws.headerFooter.oddFooter = "&L" + EXCESOPM_CFG.cliente + "&RPágina &P";
+  }
+
+  function xlHojaTop(wb, A, logo) {
+    var ws = wb.addWorksheet("Top Unidades", { properties: { tabColor: { argb: "FF8C8C8C" } } });
+    xlBase(ws, [2, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 2]);
+    xlEncabezado(wb, ws, logo, "Ranking de placas", "Top Unidades", XL_NAV10, 11);
+    ws.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+    xlSeccion(ws, 11, "Top 20 placas con más eventos");
+    var filas = A.listaPlacas.slice(0, 20).map(function (p, i) {
+      return [i + 1, p.placa, p.conductor, p.motor, p.eventos, A.total ? p.eventos / A.total : 0, p.rpmMax !== null ? Math.round(p.rpmMax) : "—", p.dur / 86400];
+    });
+    var last = xlTabla(ws, 12, [
+      { t: "Puesto", c1: 2, c2: 2, al: "center" }, { t: "Placa", c1: 3, c2: 3, fuerte: true }, { t: "Conductor", c1: 4, c2: 6 },
+      { t: "Tipo de motor", c1: 7, c2: 7 }, { t: "Cantidad de eventos", c1: 8, c2: 8, fmt: "#,##0", al: "right", fuerte: true },
+      { t: "% del total", c1: 9, c2: 9, fmt: "0.0%", al: "right" }, { t: "RPM máxima", c1: 10, c2: 10, fmt: "#,##0", al: "right" },
+      { t: "Tiempo total", c1: 11, c2: 11, fmt: "[h]:mm:ss", al: "right" }
+    ], filas);
+    if (filas.length) xlBarraDatos(ws, "H13:H" + last);
+    ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    ws.headerFooter.oddFooter = "&L" + EXCESOPM_CFG.cliente + "&RPágina &P";
+  }
+
+  function xlHojaDetalle(wb, evs, logo) {
+    var ws = wb.addWorksheet("Detalle por Unidad y Conductor", { properties: { tabColor: { argb: "FF8C8C8C" } } });
+    xlBase(ws, [2, 13, 36, 14, 14, 14, 14, 14, 14, 2]);
+    xlEncabezado(wb, ws, logo, "Detalle por unidad y conductor", "Detalle por Unidad y Conductor", [[2, 2], [3, 3], [4, 5], [6, 9]], 9);
+    xlSeccion(ws, 11, "Detalle por placa, conductor y día");
+    var filas = excesopm_filasDetalle(evs).map(function (r) {
+      var p = r.dia.split("-");
+      return [r.placa, r.conductor, r.motor, new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])), r.eventos, r.rpmMax !== null ? Math.round(r.rpmMax) : null, r.rpmProm !== null ? Math.round(r.rpmProm) : null, r.dur / 86400];
+    });
+    var last = xlTabla(ws, 12, [
+      { t: "Placa", c1: 2, c2: 2, fuerte: true }, { t: "Conductor", c1: 3, c2: 3 }, { t: "Tipo de motor", c1: 4, c2: 4 },
+      { t: "Día", c1: 5, c2: 5, fmt: "dd/mm/yyyy", al: "center" }, { t: "Cantidad de eventos", c1: 6, c2: 6, fmt: "#,##0", al: "right", fuerte: true },
+      { t: "RPM máxima", c1: 7, c2: 7, fmt: "#,##0", al: "right" }, { t: "RPM promedio", c1: 8, c2: 8, fmt: "#,##0", al: "right" },
+      { t: "Tiempo total", c1: 9, c2: 9, fmt: "[h]:mm:ss", al: "right" }
+    ], filas);
+    ws.views = [{ showGridLines: false, state: "frozen", ySplit: 12 }];
+    if (filas.length) {
+      ws.autoFilter = { from: { row: 12, column: 2 }, to: { row: last, column: 9 } };
+      xlBarraDatos(ws, "F13:F" + last);
+    }
+    ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    ws.headerFooter.oddFooter = "&L" + EXCESOPM_CFG.cliente + "&RPágina &P";
+  }
+
+  function excesopm_logoBase64() {
+    return fetch(EXCESOPM_CFG.baseUrl + EXCESOPM_CFG.logo).then(function (r) {
+      if (!r.ok) throw new Error("logo");
+      return r.blob();
+    }).then(function (blob) {
+      return new Promise(function (resolve, reject) {
+        var fr = new FileReader();
+        fr.onload = function () {
+          var url = fr.result, img = new Image();
+          img.onload = function () { resolve({ base64: url.split(",")[1], w: img.naturalWidth || 1, h: img.naturalHeight || 1 }); };
+          img.onerror = function () { reject(new Error("logo")); };
+          img.src = url;
+        };
+        fr.onerror = function () { reject(new Error("logo")); };
+        fr.readAsDataURL(blob);
+      });
+    }).catch(function () { return null; });
+  }
+
+  function excesopm_exportar() {
+    if (typeof ExcelJS === "undefined") { alert("No se pudo cargar la librería de exportación (ExcelJS). Verifique su conexión e intente nuevamente."); return; }
+    var evs = excesopm_filtrados();
+    if (!evs.length) { alert("No hay datos para exportar."); return; }
+    var A = excesopm_agregar(evs);
+    $("excesopm-btn-exportar").disabled = true;
+    excesopm_estado("Generando archivo XLSX…");
+    excesopm_logoBase64().then(function (logo) {
+      var wb = new ExcelJS.Workbook();
+      wb.creator = EXCESOPM_CFG.cliente + " - Control de exceso de RPM";
+      wb.created = new Date();
+      xlHojaResumen(wb, A, evs, logo);
+      xlHojaMotor(wb, A, logo);
+      xlHojaTop(wb, A, logo);
+      xlHojaDetalle(wb, evs, logo);
+      return wb.xlsx.writeBuffer();
+    }).then(function (buffer) {
+      var blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      var url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url;
+      a.download = "ExcesoRPM_ARDEPE_" + EXCESOPM.desde.replace(/-/g, "") + "_" + EXCESOPM.hasta.replace(/-/g, "") + ".xlsx";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      excesopm_estado("Archivo exportado.");
+      $("excesopm-btn-exportar").disabled = false;
+    }).catch(function (err) {
+      $("excesopm-btn-exportar").disabled = false;
+      excesopm_estado("");
+      alert("Error al exportar: " + ((err && err.message) || err));
+    });
+  }
+
+})();
+</script>
+</body>
+</html>
