@@ -343,6 +343,9 @@
     excesopm_poblarMotores();
     excesopm_cambiarTab("resumen");
     excesopm_renderActivo();
+
+    /* Carga automática: al abrir el add-in consulta el día anterior completo (hora Lima) */
+    excesopm_consultar();
   }
 
   function excesopm_validarRango() {
@@ -440,8 +443,14 @@
       excesopm_cargando(false);
       excesopm_estado(eventos.length ? ("Consulta completada: " + excesopm_num(eventos.length) + " eventos.") : "No se encontraron eventos en el periodo seleccionado.");
       excesopm_renderActivo();
-      $("excesopm-btn-exportar").disabled = eventos.length === 0;
-      if (eventos.length && EXCESOPM_CFG.incluirRpm) excesopm_calcularRpm(id);
+      if (eventos.length && EXCESOPM_CFG.incluirRpm) {
+        /* Mientras se calculan las RPM, se bloquean Consultar y Exportar para no exportar datos incompletos */
+        $("excesopm-btn-exportar").disabled = true;
+        $("excesopm-btn-consultar").disabled = true;
+        excesopm_calcularRpm(id);
+      } else {
+        $("excesopm-btn-exportar").disabled = eventos.length === 0;
+      }
     }).catch(function (err) {
       if (id !== EXCESOPM.consultaId) return;
       excesopm_cargando(false);
@@ -455,11 +464,13 @@
     var evs = EXCESOPM.eventos, total = evs.length, i = 0, reintentos = 0, lotes = 0;
     var CH = EXCESOPM_CFG.rpmLote;
     excesopm_progreso(0);
-    excesopm_estado("Calculando RPM… 0 de " + excesopm_num(total));
+    excesopm_estado("Calculando RPM… 0 de " + excesopm_num(total) + " (Consultar y Exportar se habilitan al terminar)");
 
     function fin() {
       excesopm_progreso(null);
-      excesopm_estado("Consulta completada: " + excesopm_num(total) + " eventos.");
+      excesopm_estado("Consulta completada: " + excesopm_num(total) + " eventos. Ya puede exportar.");
+      $("excesopm-btn-consultar").disabled = false;
+      $("excesopm-btn-exportar").disabled = false;
       excesopm_renderActivo();
     }
     function paso() {
@@ -486,7 +497,7 @@
         });
         i += CH; reintentos = 0; lotes++;
         excesopm_progreso((Math.min(i, total) / total) * 100);
-        excesopm_estado("Calculando RPM… " + excesopm_num(Math.min(i, total)) + " de " + excesopm_num(total));
+        excesopm_estado("Calculando RPM… " + excesopm_num(Math.min(i, total)) + " de " + excesopm_num(total) + " (Consultar y Exportar se habilitan al terminar)");
         if (lotes % 5 === 0) excesopm_renderActivo();
         setTimeout(paso, EXCESOPM_CFG.rpmPausaMs);
       }, function () {
