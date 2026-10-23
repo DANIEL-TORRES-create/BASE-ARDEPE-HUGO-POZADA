@@ -80,6 +80,8 @@
   transition: border-color .15s, color .15s;
 }
 #excesopm-root .excesopm-nav-btn:hover { border-color: var(--excesopm-rojo); }
+#excesopm-root .excesopm-nav-btn:disabled { opacity: .4; cursor: not-allowed; }
+#excesopm-root .excesopm-nav-btn:disabled:hover { border-color: var(--excesopm-borde); }
 #excesopm-root .excesopm-nav-btn.excesopm-activo {
   color: var(--excesopm-rojo);
   font-weight: 700;
