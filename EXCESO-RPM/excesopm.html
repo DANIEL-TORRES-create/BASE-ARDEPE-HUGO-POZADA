@@ -31,6 +31,8 @@
     <button type="button" class="excesopm-nav-btn" data-tab="motor">Top por Tipo de Motor</button>
     <button type="button" class="excesopm-nav-btn" data-tab="top">Top Unidades</button>
     <button type="button" class="excesopm-nav-btn" data-tab="detalle">Detalle por Unidad y Conductor</button>
+    <!-- [MAPA] nueva pestaña -->
+    <button type="button" class="excesopm-nav-btn" data-tab="mapa">Mapa de Calor</button>
   </div>
   <div class="excesopm-guia" id="excesopm-guia"></div>
 
@@ -132,6 +134,29 @@
     <div class="excesopm-pie" id="excesopm-pie-detalle"></div>
   </div>
 
+  <!-- [MAPA] PANEL MAPA DE CALOR (solo visual en el add-in; no forma parte del XLSX) -->
+  <div class="excesopm-panel" id="excesopm-panel-mapa">
+    <div class="excesopm-seccion">Mapa de concentración de eventos</div>
+    <div class="excesopm-mapa-barra">
+      <div class="excesopm-mapa-modos">
+        <button type="button" class="excesopm-btn-modo excesopm-activo" id="excesopm-mapa-b-calor">Calor</button>
+        <button type="button" class="excesopm-btn-modo" id="excesopm-mapa-b-puntos">Puntos</button>
+      </div>
+      <div class="excesopm-mapa-info" id="excesopm-mapa-info"></div>
+    </div>
+    <div class="excesopm-progreso" id="excesopm-mapa-prog"><div id="excesopm-mapa-prog-barra"></div></div>
+    <div class="excesopm-card excesopm-mapa-card">
+      <div class="excesopm-mapa-wrap">
+        <div id="excesopm-mapa" class="excesopm-mapa"></div>
+        <div class="excesopm-mapa-msg" id="excesopm-mapa-msg"></div>
+      </div>
+      <div class="excesopm-mapa-leyenda">
+        <span>Menos eventos</span><span class="excesopm-mapa-grad"></span><span>Más eventos</span>
+        <span class="excesopm-mapa-nota">Cada evento se ubica donde empezó. La intensidad indica la cantidad de eventos.</span>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -170,7 +195,9 @@
       resumen:  "Guía de lectura: resultados del periodo, evolución de los eventos y placas con mayor incidencia. Use los filtros para enfocar un motor, placa, conductor o día.",
       motor:    "Guía de lectura: compara los tipos de motor por cantidad de eventos y por RPM. Use los filtros para acotar la información.",
       top:      "Guía de lectura: ranking de las 20 placas con más eventos, con su conductor y su tipo de motor. Es la base para priorizar la gestión.",
-      detalle:  "Guía de lectura: detalle completo por placa, conductor y día. Use los filtros y el buscador para llegar a un caso específico."
+      detalle:  "Guía de lectura: detalle completo por placa, conductor y día. Use los filtros y el buscador para llegar a un caso específico.",
+      /* [MAPA] */
+      mapa:     "Guía de lectura: muestra dónde ocurrieron los eventos. Las zonas más intensas concentran más eventos. Use los filtros para enfocar un motor, placa, conductor o día; el mapa se actualiza solo."
     }
   };
 
@@ -758,7 +785,8 @@
     for (var i = 0; i < navs.length; i++) {
       navs[i].className = "excesopm-nav-btn" + (navs[i].getAttribute("data-tab") === tab ? " excesopm-activo" : "");
     }
-    ["resumen", "motor", "top", "detalle"].forEach(function (t) {
+    /* [MAPA] se agregó "mapa" a la lista de paneles */
+    ["resumen", "motor", "top", "detalle", "mapa"].forEach(function (t) {
       $("excesopm-panel-" + t).className = "excesopm-panel" + (t === tab ? " excesopm-activo" : "");
     });
     $("excesopm-guia").textContent = EXCESOPM_TXT.guia[tab];
@@ -775,6 +803,7 @@
     if (EXCESOPM.tab === "resumen") excesopm_renderResumen(evs);
     else if (EXCESOPM.tab === "motor") excesopm_renderMotor(evs);
     else if (EXCESOPM.tab === "top") excesopm_renderTop(evs);
+    else if (EXCESOPM.tab === "mapa") excesopm_mapa_render();   /* [MAPA] */
     else excesopm_renderDetalle(evs);
   }
 
@@ -891,6 +920,268 @@
     $("excesopm-pie-detalle").textContent = filas.length > max
       ? "Mostrando " + excesopm_num(max) + " de " + excesopm_num(filas.length) + " filas. Use los filtros o el buscador para acotar; la exportación incluye todas."
       : (filas.length ? excesopm_num(filas.length) + " filas." : "");
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     [MAPA] MAPA DE CALOR — bloque nuevo e independiente.
+     - Solo visual dentro del add-in (no entra al XLSX).
+     - Un punto por evento (donde empezó), intensidad = cantidad de eventos.
+     - Segunda consulta (LogRecord / GPS) solo al abrir la pestaña,
+       únicamente de los eventos que cumplen los filtros, y con caché
+       por evento (e.lat, e.lon, e.geoHecho).
+     - No arranca mientras se calculan las RPM (para no saturar la API).
+     - Si algo falla, el mensaje aparece dentro de la pestaña y el resto
+       del add-in sigue funcionando.
+  ═══════════════════════════════════════════════════════════ */
+  var EXCESOPM_MAPA_CFG = {
+    leafletCss: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+    leafletJs:  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+    heatJs:     "https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js",
+    tiles:      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    centro:     [-12.05, -77.04],
+    zoom:       6,
+    ventanaSeg: 180,      /* se busca el GPS más cercano al inicio del evento: ±3 min */
+    lote:       20,       /* llamadas por lote (ExecuteMultiCall) */
+    pausaMs:    1000,     /* pausa entre lotes */
+    maxPuntos:  4000      /* tope de marcadores en modo Puntos */
+  };
+
+  var EXCESOPM_MAPA = {
+    mapa: null, capa: null, modo: "calor",
+    libs: null, heatOk: false,
+    token: 0, corriendo: false, corrCid: -1,
+    cableado: false
+  };
+
+  function excesopm_mapa_cargarScript(url) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = url; s.async = true;
+      s.onload = function () { resolve(); };
+      s.onerror = function () { reject(new Error("No se pudo cargar " + url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function excesopm_mapa_cargarLibs() {
+    var M = EXCESOPM_MAPA;
+    if (M.libs) return M.libs;
+    if (!document.getElementById("excesopm-leaflet-css") && !document.querySelector('link[href*="leaflet"]')) {
+      var lk = document.createElement("link");
+      lk.id = "excesopm-leaflet-css"; lk.rel = "stylesheet"; lk.href = EXCESOPM_MAPA_CFG.leafletCss;
+      document.head.appendChild(lk);
+    }
+    var p = Promise.resolve();
+    if (typeof L === "undefined") p = p.then(function () { return excesopm_mapa_cargarScript(EXCESOPM_MAPA_CFG.leafletJs); });
+    p = p.then(function () {
+      if (typeof L === "undefined") throw new Error("Leaflet no está disponible");
+      if (L.heatLayer) { M.heatOk = true; return; }
+      return excesopm_mapa_cargarScript(EXCESOPM_MAPA_CFG.heatJs).then(
+        function () { M.heatOk = !!L.heatLayer; },
+        function () { M.heatOk = false; }
+      );
+    });
+    M.libs = p.catch(function (err) { M.libs = null; throw err; });
+    return M.libs;
+  }
+
+  function excesopm_mapa_msg(texto) {
+    var m = $("excesopm-mapa-msg");
+    if (!m) return;
+    m.textContent = texto || "";
+    m.style.display = texto ? "flex" : "none";
+  }
+
+  function excesopm_mapa_prog(pct) {
+    var p = $("excesopm-mapa-prog");
+    if (!p) return;
+    if (pct === null) { p.className = "excesopm-progreso"; return; }
+    p.className = "excesopm-progreso excesopm-visible";
+    $("excesopm-mapa-prog-barra").style.width = Math.max(0, Math.min(100, pct)) + "%";
+  }
+
+  function excesopm_mapa_conUbic(evs) {
+    return evs.filter(function (e) { return typeof e.lat === "number" && typeof e.lon === "number"; });
+  }
+
+  function excesopm_mapa_info(evs) {
+    var M = EXCESOPM_MAPA, el = $("excesopm-mapa-info");
+    if (!el) return;
+    var tot = evs.length, ub = excesopm_mapa_conUbic(evs).length;
+    var pend = evs.filter(function (e) { return !e.geoHecho; }).length;
+    var t;
+    if (pend > 0) {
+      t = "Ubicando eventos… " + excesopm_num(tot - pend) + " de " + excesopm_num(tot);
+      excesopm_mapa_prog(tot ? ((tot - pend) / tot) * 100 : 0);
+    } else {
+      t = "Eventos ubicados en el mapa: " + excesopm_num(ub) + " de " + excesopm_num(tot) +
+        (tot - ub > 0 ? " · " + excesopm_num(tot - ub) + " sin ubicación GPS" : "");
+      excesopm_mapa_prog(null);
+    }
+    if (M.libs && !M.heatOk && M.modo === "calor") t += " · El plugin de calor no cargó; se muestran puntos.";
+    el.textContent = t;
+  }
+
+  function excesopm_mapa_dibujar(evs, ajustar) {
+    var M = EXCESOPM_MAPA;
+    if (!M.mapa || typeof L === "undefined") return;
+    if (M.capa) { M.mapa.removeLayer(M.capa); M.capa = null; }
+    var pts = excesopm_mapa_conUbic(evs);
+    var usarCalor = M.modo === "calor" && M.heatOk && !!L.heatLayer;
+    var coords = [];
+    if (pts.length) {
+      if (usarCalor) {
+        var arr = pts.map(function (p) { coords.push([p.lat, p.lon]); return [p.lat, p.lon, 1]; });
+        var max = pts.length < 30 ? 3 : (pts.length < 200 ? 6 : 12);
+        M.capa = L.heatLayer(arr, {
+          radius: 22, blur: 18, maxZoom: 14, max: max, minOpacity: 0.35,
+          gradient: { 0.2: "#3b82f6", 0.4: "#22c55e", 0.6: "#facc15", 0.8: "#f97316", 1.0: "#c8102e" }
+        }).addTo(M.mapa);
+      } else {
+        var g = L.layerGroup();
+        pts.slice(0, EXCESOPM_MAPA_CFG.maxPuntos).forEach(function (p) {
+          coords.push([p.lat, p.lon]);
+          var pop = "<b>" + excesopm_esc(p.placa) + "</b><br>" +
+            "Conductor: " + excesopm_esc(p.conductor) + "<br>" +
+            "Motor: " + excesopm_esc(p.motor) + "<br>" +
+            "Inicio: " + excesopm_esc(excesopm_fmtFechaHora(p.ini)) + "<br>" +
+            "Duración: " + excesopm_esc(excesopm_fmtDur(p.durSeg)) +
+            (excesopm_rpmValido(p) ? "<br>RPM máxima: " + excesopm_num(p.rpm) : "");
+          L.circleMarker([p.lat, p.lon], { radius: 6, color: "#ffffff", weight: 1, fillColor: C_ROJO, fillOpacity: 0.85 })
+            .bindPopup(pop).addTo(g);
+        });
+        M.capa = g.addTo(M.mapa);
+      }
+      if (ajustar && coords.length) {
+        try { M.mapa.fitBounds(L.latLngBounds(coords), { padding: [40, 40], maxZoom: 15 }); } catch (e) { /* sin ajuste */ }
+      }
+    }
+    M.mapa.invalidateSize();
+  }
+
+  function excesopm_mapa_cablear() {
+    var M = EXCESOPM_MAPA;
+    var bC = $("excesopm-mapa-b-calor"), bP = $("excesopm-mapa-b-puntos");
+    if (!bC || !bP || bC.getAttribute("data-w") === "1") return;
+    bC.setAttribute("data-w", "1");
+    function poner(modo) {
+      M.modo = modo;
+      bC.className = "excesopm-btn-modo" + (modo === "calor" ? " excesopm-activo" : "");
+      bP.className = "excesopm-btn-modo" + (modo === "puntos" ? " excesopm-activo" : "");
+      var evs = excesopm_filtrados();
+      excesopm_mapa_dibujar(evs, false);
+      excesopm_mapa_info(evs);
+    }
+    bC.addEventListener("click", function () { poner("calor"); });
+    bP.addEventListener("click", function () { poner("puntos"); });
+  }
+
+  function excesopm_mapa_asegurarMapa() {
+    var M = EXCESOPM_MAPA, el = $("excesopm-mapa");
+    if (!el) return false;
+    if (M.mapa && M.mapa.getContainer() !== el) { try { M.mapa.remove(); } catch (e) { /* nada */ } M.mapa = null; M.capa = null; }
+    if (!M.mapa) {
+      M.mapa = L.map(el, { preferCanvas: true }).setView(EXCESOPM_MAPA_CFG.centro, EXCESOPM_MAPA_CFG.zoom);
+      L.tileLayer(EXCESOPM_MAPA_CFG.tiles, { attribution: "&copy; OpenStreetMap", maxZoom: 19 }).addTo(M.mapa);
+    }
+    return true;
+  }
+
+  /* Segunda consulta: GPS (LogRecord) más cercano al inicio de cada evento */
+  function excesopm_mapa_geolocalizar() {
+    var M = EXCESOPM_MAPA, cid = EXCESOPM.consultaId;
+    if (M.corriendo && M.corrCid === cid) return;
+    var tok = ++M.token, reintentos = 0, lotes = 0;
+    var CH = EXCESOPM_MAPA_CFG.lote, V = EXCESOPM_MAPA_CFG.ventanaSeg * 1000;
+    M.corriendo = true; M.corrCid = cid;
+
+    function paso() {
+      if (tok !== M.token) return;
+      if (cid !== EXCESOPM.consultaId || EXCESOPM.tab !== "mapa") { M.corriendo = false; return; }
+      var evs = excesopm_filtrados();
+      var pend = evs.filter(function (e) { return !e.geoHecho; });
+      if (!pend.length) {
+        M.corriendo = false;
+        excesopm_mapa_dibujar(evs, true);
+        excesopm_mapa_info(evs);
+        return;
+      }
+      excesopm_mapa_info(evs);
+      var lote = pend.slice(0, CH);
+      var calls = lote.map(function (e) {
+        return { method: "Get", params: { typeName: "LogRecord", resultsLimit: 500, search: {
+          deviceSearch: { id: e.deviceId },
+          fromDate: new Date(e.ini.getTime() - V).toISOString(),
+          toDate: new Date(e.ini.getTime() + V).toISOString()
+        } } };
+      });
+      excesopm_api("ExecuteMultiCall", { calls: calls }).then(function (rs) {
+        if (tok !== M.token) return;
+        lote.forEach(function (e, k) {
+          var datos = (rs && rs[k]) || [], mejor = null, mejorD = Infinity;
+          datos.forEach(function (d) {
+            var la = Number(d.latitude), lo = Number(d.longitude);
+            if (!isFinite(la) || !isFinite(lo) || (la === 0 && lo === 0)) return;
+            var dt = Math.abs(new Date(d.dateTime).getTime() - e.ini.getTime());
+            if (dt < mejorD) { mejorD = dt; mejor = { lat: la, lon: lo }; }
+          });
+          if (mejor) { e.lat = mejor.lat; e.lon = mejor.lon; }
+          e.geoHecho = true;
+        });
+        reintentos = 0; lotes++;
+        if (lotes % 3 === 0) excesopm_mapa_dibujar(excesopm_filtrados(), false);
+        setTimeout(paso, EXCESOPM_MAPA_CFG.pausaMs);
+      }, function () {
+        if (tok !== M.token) return;
+        reintentos++;
+        if (reintentos <= 3) { setTimeout(paso, 5000); }
+        else {
+          lote.forEach(function (e) { e.geoHecho = true; });
+          reintentos = 0; setTimeout(paso, EXCESOPM_MAPA_CFG.pausaMs);
+        }
+      });
+    }
+    paso();
+  }
+
+  function excesopm_mapa_render() {
+    var M = EXCESOPM_MAPA;
+    excesopm_mapa_cablear();
+
+    if (!EXCESOPM.desde) { excesopm_mapa_msg("Presione Consultar para cargar los eventos."); return; }
+
+    /* Espera a que termine la consulta y el cálculo de RPM (el botón Consultar queda bloqueado mientras tanto) */
+    if ($("excesopm-btn-consultar").disabled) {
+      $("excesopm-mapa-info").textContent = "Esperando a que termine la consulta y el cálculo de RPM…";
+      return;
+    }
+
+    var evs = excesopm_filtrados();
+    if (!evs.length) {
+      if (M.capa && M.mapa) { M.mapa.removeLayer(M.capa); M.capa = null; }
+      $("excesopm-mapa-info").textContent = "";
+      excesopm_mapa_prog(null);
+      excesopm_mapa_msg("Sin eventos con los filtros aplicados.");
+      return;
+    }
+    excesopm_mapa_msg("");
+
+    /* Se difiere un instante: así, si justo después de este render se bloquean los botones para calcular RPM, no se inicia nada en paralelo */
+    setTimeout(function () {
+      if (EXCESOPM.tab !== "mapa" || $("excesopm-btn-consultar").disabled) return;
+      excesopm_mapa_cargarLibs().then(function () {
+        if (EXCESOPM.tab !== "mapa" || $("excesopm-btn-consultar").disabled) return;
+        if (!excesopm_mapa_asegurarMapa()) return;
+        var actual = excesopm_filtrados();
+        if (!actual.length) return;
+        var hayPend = actual.some(function (e) { return !e.geoHecho; });
+        excesopm_mapa_dibujar(actual, !hayPend);
+        excesopm_mapa_info(actual);
+        if (hayPend) excesopm_mapa_geolocalizar();
+      }).catch(function (err) {
+        excesopm_mapa_msg("No se pudo cargar el mapa: " + ((err && err.message) || err));
+      });
+    }, 0);
   }
 
   /* ═══════════════════════════════════════════════════════════
