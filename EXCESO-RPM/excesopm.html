@@ -315,6 +315,16 @@
     $("excesopm-btn-consultar").disabled = on;
   }
 
+  /* Mientras carga la consulta y el cálculo de RPM, solo queda activo "Resumen".
+     Al terminar se habilitan las demás pestañas (incluido Mapa de Calor). */
+  function excesopm_bloquearTabs(on) {
+    var navs = $("excesopm-nav").getElementsByTagName("button");
+    for (var i = 0; i < navs.length; i++) {
+      navs[i].disabled = on && navs[i].getAttribute("data-tab") !== "resumen";
+    }
+    if (on && EXCESOPM.tab !== "resumen") excesopm_cambiarTab("resumen");
+  }
+
   /* ═══════════════════════════════════════════════════════════
      INIT — MyGeotab inyecta api y state
   ═══════════════════════════════════════════════════════════ */
@@ -420,6 +430,7 @@
     hasta = $("excesopm-hasta").value;
 
     var id = ++EXCESOPM.consultaId;
+    excesopm_bloquearTabs(true);
     excesopm_cargando(true);
     excesopm_progreso(null);
     excesopm_estado("Consultando eventos…");
@@ -477,11 +488,13 @@
         excesopm_calcularRpm(id);
       } else {
         $("excesopm-btn-exportar").disabled = eventos.length === 0;
+        excesopm_bloquearTabs(false);
       }
     }).catch(function (err) {
       if (id !== EXCESOPM.consultaId) return;
       excesopm_cargando(false);
       excesopm_estado("");
+      excesopm_bloquearTabs(false);
       alert("Error consultando eventos: " + ((err && err.message) || err));
     });
   }
@@ -498,6 +511,7 @@
       excesopm_estado("Consulta completada: " + excesopm_num(total) + " eventos. Ya puede exportar.");
       $("excesopm-btn-consultar").disabled = false;
       $("excesopm-btn-exportar").disabled = false;
+      excesopm_bloquearTabs(false);
       excesopm_renderActivo();
     }
     function paso() {
