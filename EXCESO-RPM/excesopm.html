@@ -37,7 +37,7 @@
   <div class="excesopm-guia" id="excesopm-guia"></div>
 
   <!-- CONSULTA -->
-  <div class="excesopm-barra">
+  <div class="excesopm-barra" id="excesopm-barra-consulta">
     <div class="excesopm-campo"><label for="excesopm-desde">Fecha desde</label><input type="date" id="excesopm-desde"/></div>
     <div class="excesopm-campo"><label for="excesopm-hasta">Fecha hasta (máx. <span id="excesopm-maxdias">7</span> días)</label><input type="date" id="excesopm-hasta"/></div>
     <button type="button" class="excesopm-btn" id="excesopm-btn-consultar">Consultar</button>
@@ -323,6 +323,25 @@
       navs[i].disabled = on && navs[i].getAttribute("data-tab") !== "resumen";
     }
     if (on && EXCESOPM.tab !== "resumen") excesopm_cambiarTab("resumen");
+  }
+
+  /* En "Mapa de Calor" se oculta la barra de consulta (fechas, Consultar, Exportar) y los
+     filtros quedan bloqueados mientras el mapa carga. En las demás pestañas todo vuelve a
+     mostrarse y los filtros quedan habilitados. */
+  function excesopm_uiTab() {
+    var enMapa = EXCESOPM.tab === "mapa";
+    var b = $("excesopm-barra-consulta"), e = $("excesopm-estado");
+    if (b) b.style.display = enMapa ? "none" : "";
+    if (e) e.style.display = enMapa ? "none" : "";
+    var bloq = enMapa && !!EXCESOPM_MAPA.cargando;
+    ["motor", "placa", "conductor", "dia"].forEach(function (k) {
+      var f = $("excesopm-f-" + k);
+      if (f) f.disabled = bloq;
+    });
+  }
+  function excesopm_mapa_setCargando(on) {
+    EXCESOPM_MAPA.cargando = !!on;
+    excesopm_uiTab();
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -804,6 +823,7 @@
       $("excesopm-panel-" + t).className = "excesopm-panel" + (t === tab ? " excesopm-activo" : "");
     });
     $("excesopm-guia").textContent = EXCESOPM_TXT.guia[tab];
+    excesopm_uiTab();
     excesopm_renderActivo();
   }
 
@@ -964,6 +984,7 @@
     mapa: null, capa: null, modo: "calor",
     libs: null, heatOk: false,
     token: 0, corriendo: false, corrCid: -1,
+    cargando: false,
     cableado: false
   };
 
@@ -1111,13 +1132,14 @@
 
     function paso() {
       if (tok !== M.token) return;
-      if (cid !== EXCESOPM.consultaId || EXCESOPM.tab !== "mapa") { M.corriendo = false; return; }
+      if (cid !== EXCESOPM.consultaId || EXCESOPM.tab !== "mapa") { M.corriendo = false; M.cargando = false; return; }
       var evs = excesopm_filtrados();
       var pend = evs.filter(function (e) { return !e.geoHecho; });
       if (!pend.length) {
         M.corriendo = false;
         excesopm_mapa_dibujar(evs, true);
         excesopm_mapa_info(evs);
+        excesopm_mapa_setCargando(false);
         return;
       }
       excesopm_mapa_info(evs);
@@ -1162,11 +1184,12 @@
     var M = EXCESOPM_MAPA;
     excesopm_mapa_cablear();
 
-    if (!EXCESOPM.desde) { excesopm_mapa_msg("Presione Consultar para cargar los eventos."); return; }
+    if (!EXCESOPM.desde) { excesopm_mapa_setCargando(false); excesopm_mapa_msg("Vuelva a Resumen y presione Consultar para cargar los eventos."); return; }
 
     /* Espera a que termine la consulta y el cálculo de RPM (el botón Consultar queda bloqueado mientras tanto) */
     if ($("excesopm-btn-consultar").disabled) {
       $("excesopm-mapa-info").textContent = "Esperando a que termine la consulta y el cálculo de RPM…";
+      excesopm_mapa_setCargando(false);
       return;
     }
 
@@ -1176,23 +1199,28 @@
       $("excesopm-mapa-info").textContent = "";
       excesopm_mapa_prog(null);
       excesopm_mapa_msg("Sin eventos con los filtros aplicados.");
+      excesopm_mapa_setCargando(false);
       return;
     }
     excesopm_mapa_msg("");
+    /* Filtros bloqueados solo si hay algo por cargar (ubicaciones pendientes o mapa sin crear) */
+    excesopm_mapa_setCargando(evs.some(function (e) { return !e.geoHecho; }) || !M.mapa);
 
     /* Se difiere un instante: así, si justo después de este render se bloquean los botones para calcular RPM, no se inicia nada en paralelo */
     setTimeout(function () {
-      if (EXCESOPM.tab !== "mapa" || $("excesopm-btn-consultar").disabled) return;
+      if (EXCESOPM.tab !== "mapa" || $("excesopm-btn-consultar").disabled) { excesopm_mapa_setCargando(false); return; }
       excesopm_mapa_cargarLibs().then(function () {
-        if (EXCESOPM.tab !== "mapa" || $("excesopm-btn-consultar").disabled) return;
-        if (!excesopm_mapa_asegurarMapa()) return;
+        if (EXCESOPM.tab !== "mapa" || $("excesopm-btn-consultar").disabled) { excesopm_mapa_setCargando(false); return; }
+        if (!excesopm_mapa_asegurarMapa()) { excesopm_mapa_setCargando(false); return; }
         var actual = excesopm_filtrados();
-        if (!actual.length) return;
+        if (!actual.length) { excesopm_mapa_setCargando(false); return; }
         var hayPend = actual.some(function (e) { return !e.geoHecho; });
         excesopm_mapa_dibujar(actual, !hayPend);
         excesopm_mapa_info(actual);
         if (hayPend) excesopm_mapa_geolocalizar();
+        else excesopm_mapa_setCargando(false);
       }).catch(function (err) {
+        excesopm_mapa_setCargando(false);
         excesopm_mapa_msg("No se pudo cargar el mapa: " + ((err && err.message) || err));
       });
     }, 0);
